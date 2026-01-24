@@ -5,9 +5,17 @@ import {
   useVideoConfig,
   interpolate,
   Easing,
-  Sequence,
 } from 'remotion';
-import type { ProjectConfig, Keyframe, MapMarker, Route, Polygon } from '../../src/types';
+import type {
+  ProjectConfig,
+  Keyframe,
+  TextMarker,
+  Route,
+  Zone,
+  CameraState,
+  EasingType,
+  ElementTiming,
+} from '../../src/types';
 import { MapRenderer } from '../components/MapRenderer';
 import { TitleOverlay } from '../components/TitleOverlay';
 import { LogoOverlay } from '../components/LogoOverlay';
@@ -23,7 +31,7 @@ interface PropertyClipCompositionProps {
   config: ProjectConfig;
 }
 
-interface InterpolatedViewState {
+interface ViewState {
   center: [number, number];
   zoom: number;
   pitch: number;
@@ -34,11 +42,8 @@ interface InterpolatedViewState {
 // Easing Functions
 // ===========================================
 
-const easingFunctions: Record<string, (t: number) => number> = {
+const easingFunctions: Record<EasingType, (t: number) => number> = {
   linear: (t) => t,
-  easeIn: Easing.in(Easing.cubic),
-  easeOut: Easing.out(Easing.cubic),
-  easeInOut: Easing.inOut(Easing.cubic),
   easeInQuad: Easing.in(Easing.quad),
   easeOutQuad: Easing.out(Easing.quad),
   easeInOutQuad: Easing.inOut(Easing.quad),
@@ -51,15 +56,6 @@ const easingFunctions: Record<string, (t: number) => number> = {
   easeInExpo: Easing.in(Easing.exp),
   easeOutExpo: Easing.out(Easing.exp),
   easeInOutExpo: Easing.inOut(Easing.exp),
-  easeInBack: Easing.in(Easing.back(1.7)),
-  easeOutBack: Easing.out(Easing.back(1.7)),
-  easeInOutBack: Easing.inOut(Easing.back(1.7)),
-  easeInElastic: Easing.in(Easing.elastic(1)),
-  easeOutElastic: Easing.out(Easing.elastic(1)),
-  easeInOutElastic: Easing.inOut(Easing.elastic(1)),
-  easeInBounce: Easing.in(Easing.bounce),
-  easeOutBounce: Easing.out(Easing.bounce),
-  easeInOutBounce: Easing.inOut(Easing.bounce),
 };
 
 // ===========================================
@@ -68,122 +64,177 @@ const easingFunctions: Record<string, (t: number) => number> = {
 
 function interpolateKeyframes(
   keyframes: Keyframe[],
-  currentTime: number,
-  easingName: string
-): InterpolatedViewState {
+  currentTimeMs: number
+): CameraState {
+  // Default camera state
+  const defaultCamera: CameraState = {
+    centre: [55.2708, 25.2048], // Dubai
+    zoom: 14,
+    bearing: 0,
+    pitch: 45,
+  };
+
   if (keyframes.length === 0) {
-    return {
-      center: [0, 0],
-      zoom: 10,
-      pitch: 0,
-      bearing: 0,
-    };
+    return defaultCamera;
   }
 
   // Sort keyframes by time
   const sortedKeyframes = [...keyframes].sort((a, b) => a.time - b.time);
 
-  // Find current and next keyframe
+  // If we're before the first keyframe
+  if (currentTimeMs < sortedKeyframes[0].time) {
+    return sortedKeyframes[0].camera;
+  }
+
+  // If we're at or past the last keyframe
+  const lastKf = sortedKeyframes[sortedKeyframes.length - 1];
+  if (currentTimeMs >= lastKf.time + lastKf.duration) {
+    return lastKf.camera;
+  }
+
+  // Find the current and next keyframe
   let prevKeyframe = sortedKeyframes[0];
   let nextKeyframe = sortedKeyframes[0];
 
   for (let i = 0; i < sortedKeyframes.length; i++) {
-    if (sortedKeyframes[i].time <= currentTime) {
-      prevKeyframe = sortedKeyframes[i];
-      nextKeyframe = sortedKeyframes[i + 1] || sortedKeyframes[i];
+    const kf = sortedKeyframes[i];
+    const kfEndTime = kf.time + kf.duration;
+
+    if (currentTimeMs >= kf.time && currentTimeMs <= kfEndTime) {
+      prevKeyframe = kf;
+      nextKeyframe = sortedKeyframes[i + 1] || kf;
+      break;
+    } else if (currentTimeMs > kfEndTime) {
+      prevKeyframe = kf;
+      nextKeyframe = sortedKeyframes[i + 1] || kf;
     }
   }
 
-  // If we're before the first keyframe
-  if (currentTime < sortedKeyframes[0].time) {
-    return {
-      center: sortedKeyframes[0].center,
-      zoom: sortedKeyframes[0].zoom,
-      pitch: sortedKeyframes[0].pitch,
-      bearing: sortedKeyframes[0].bearing,
-    };
+  // If prev and next are the same, return prev's camera
+  if (prevKeyframe.id === nextKeyframe.id) {
+    return prevKeyframe.camera;
   }
 
-  // If we're at or past the last keyframe
-  if (currentTime >= sortedKeyframes[sortedKeyframes.length - 1].time) {
-    const lastKf = sortedKeyframes[sortedKeyframes.length - 1];
-    return {
-      center: lastKf.center,
-      zoom: lastKf.zoom,
-      pitch: lastKf.pitch,
-      bearing: lastKf.bearing,
-    };
+  // Calculate interpolation progress
+  const transitionStart = prevKeyframe.time + prevKeyframe.duration;
+  const transitionEnd = nextKeyframe.time;
+
+  if (currentTimeMs < transitionStart) {
+    return prevKeyframe.camera;
   }
 
-  // Interpolate between keyframes
-  const easing = easingFunctions[easingName] || easingFunctions.linear;
+  if (currentTimeMs >= transitionEnd) {
+    return nextKeyframe.camera;
+  }
+
+  // Get easing function
+  const easing = easingFunctions[nextKeyframe.easing] || easingFunctions.linear;
+
   const progress = interpolate(
-    currentTime,
-    [prevKeyframe.time, nextKeyframe.time],
+    currentTimeMs,
+    [transitionStart, transitionEnd],
     [0, 1],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
+
   const easedProgress = easing(progress);
 
+  // Interpolate camera properties
   return {
-    center: [
-      interpolate(easedProgress, [0, 1], [prevKeyframe.center[0], nextKeyframe.center[0]]),
-      interpolate(easedProgress, [0, 1], [prevKeyframe.center[1], nextKeyframe.center[1]]),
+    centre: [
+      interpolate(
+        easedProgress,
+        [0, 1],
+        [prevKeyframe.camera.centre[0], nextKeyframe.camera.centre[0]]
+      ),
+      interpolate(
+        easedProgress,
+        [0, 1],
+        [prevKeyframe.camera.centre[1], nextKeyframe.camera.centre[1]]
+      ),
     ] as [number, number],
-    zoom: interpolate(easedProgress, [0, 1], [prevKeyframe.zoom, nextKeyframe.zoom]),
-    pitch: interpolate(easedProgress, [0, 1], [prevKeyframe.pitch, nextKeyframe.pitch]),
-    bearing: interpolate(easedProgress, [0, 1], [prevKeyframe.bearing, nextKeyframe.bearing]),
+    zoom: interpolate(
+      easedProgress,
+      [0, 1],
+      [prevKeyframe.camera.zoom, nextKeyframe.camera.zoom]
+    ),
+    pitch: interpolate(
+      easedProgress,
+      [0, 1],
+      [prevKeyframe.camera.pitch, nextKeyframe.camera.pitch]
+    ),
+    bearing: interpolateBearing(
+      prevKeyframe.camera.bearing,
+      nextKeyframe.camera.bearing,
+      easedProgress
+    ),
   };
 }
 
-// ===========================================
-// Visible Elements Calculator
-// ===========================================
+/**
+ * Interpolate bearing values, handling the wrap-around at 360 degrees
+ */
+function interpolateBearing(
+  fromBearing: number,
+  toBearing: number,
+  progress: number
+): number {
+  // Normalise bearings to 0-360 range
+  const from = ((fromBearing % 360) + 360) % 360;
+  const to = ((toBearing % 360) + 360) % 360;
 
-function getVisibleMarkers(markers: MapMarker[], currentTime: number): MapMarker[] {
-  return markers.filter((marker) => {
-    const visibleFrom = marker.visibleFrom ?? 0;
-    const visibleTo = marker.visibleTo ?? Infinity;
-    return currentTime >= visibleFrom && currentTime <= visibleTo;
-  });
+  // Find the shortest path
+  let delta = to - from;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+
+  return ((from + delta * progress) % 360 + 360) % 360;
 }
 
-function getVisibleRoutes(routes: Route[], currentTime: number): Route[] {
-  return routes.filter((route) => {
-    const visibleFrom = route.visibleFrom ?? 0;
-    const visibleTo = route.visibleTo ?? Infinity;
-    return currentTime >= visibleFrom && currentTime <= visibleTo;
-  });
+// ===========================================
+// Element Visibility Calculator
+// ===========================================
+
+function isElementVisible(timing: ElementTiming, currentTimeMs: number): boolean {
+  const startMs = timing.startTime * 1000;
+  const endMs = timing.endTime * 1000;
+  return currentTimeMs >= startMs && currentTimeMs <= endMs;
 }
 
-function getVisiblePolygons(polygons: Polygon[], currentTime: number): Polygon[] {
-  return polygons.filter((polygon) => {
-    const visibleFrom = polygon.visibleFrom ?? 0;
-    const visibleTo = polygon.visibleTo ?? Infinity;
-    return currentTime >= visibleFrom && currentTime <= visibleTo;
-  });
+function getVisibleMarkers(
+  markers: TextMarker[],
+  currentTimeMs: number
+): TextMarker[] {
+  return markers.filter((marker) => isElementVisible(marker.timing, currentTimeMs));
+}
+
+function getVisibleRoutes(routes: Route[], currentTimeMs: number): Route[] {
+  return routes.filter((route) => isElementVisible(route.timing, currentTimeMs));
+}
+
+function getVisibleZones(zones: Zone[], currentTimeMs: number): Zone[] {
+  return zones.filter((zone) => isElementVisible(zone.timing, currentTimeMs));
 }
 
 // ===========================================
 // Animation Progress Calculator
 // ===========================================
 
-function getRouteAnimationProgress(route: Route, currentTime: number): number {
-  if (!route.animated) return 1;
-  
-  const animationStart = route.animationStart ?? route.visibleFrom ?? 0;
-  const animationDuration = route.animationDuration ?? 2;
-  const animationEnd = animationStart + animationDuration;
-  
-  if (currentTime < animationStart) return 0;
-  if (currentTime >= animationEnd) return 1;
-  
-  return interpolate(
-    currentTime,
-    [animationStart, animationEnd],
-    [0, 1],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
+function getRouteAnimationProgress(route: Route, currentTimeMs: number): number {
+  // If no animation, return fully visible
+  if (route.animation.type === 'none') return 1;
+
+  const startMs = route.timing.startTime * 1000;
+  const animationDurationMs = route.animation.duration * 1000;
+  const animationEnd = startMs + animationDurationMs;
+
+  if (currentTimeMs < startMs) return 0;
+  if (currentTimeMs >= animationEnd) return 1;
+
+  return interpolate(currentTimeMs, [startMs, animationEnd], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
 }
 
 // ===========================================
@@ -194,27 +245,31 @@ export const PropertyClipComposition: React.FC<PropertyClipCompositionProps> = (
   config,
 }) => {
   const frame = useCurrentFrame();
-  const { fps, width, height, durationInFrames } = useVideoConfig();
-  
-  // Calculate current time in seconds
-  const currentTime = frame / fps;
-  
-  // Get interpolated view state
-  const viewState = interpolateKeyframes(
-    config.keyframes,
-    currentTime,
-    config.transitions?.easing || 'easeInOut'
-  );
-  
-  // Get visible elements
-  const visibleMarkers = getVisibleMarkers(config.markers, currentTime);
-  const visibleRoutes = getVisibleRoutes(config.routes, currentTime);
-  const visiblePolygons = getVisiblePolygons(config.polygons, currentTime);
-  
+  const { fps, width, height } = useVideoConfig();
+
+  // Calculate current time in milliseconds
+  const currentTimeMs = (frame / fps) * 1000;
+
+  // Get interpolated camera state from keyframes
+  const camera = interpolateKeyframes(config.keyframes, currentTimeMs);
+
+  // Convert camera state to view state for renderers (using US spelling for internal use)
+  const viewState: ViewState = {
+    center: camera.centre,
+    zoom: camera.zoom,
+    pitch: camera.pitch,
+    bearing: camera.bearing,
+  };
+
+  // Get visible elements based on timing
+  const visibleMarkers = getVisibleMarkers(config.textMarkers, currentTimeMs);
+  const visibleRoutes = getVisibleRoutes(config.routes, currentTimeMs);
+  const visibleZones = getVisibleZones(config.zones, currentTimeMs);
+
   // Calculate route animation progress
   const routesWithProgress = visibleRoutes.map((route) => ({
     ...route,
-    animationProgress: getRouteAnimationProgress(route, currentTime),
+    animationProgress: getRouteAnimationProgress(route, currentTimeMs),
   }));
 
   return (
@@ -226,19 +281,16 @@ export const PropertyClipComposition: React.FC<PropertyClipCompositionProps> = (
       {/* Map Layer */}
       <AbsoluteFill>
         <MapRenderer
-          mapStyle={config.mapStyle}
-          center={viewState.center}
-          zoom={viewState.zoom}
-          pitch={viewState.pitch}
-          bearing={viewState.bearing}
+          camera={camera}
+          mapSettings={config.mapSettings}
           width={width}
           height={height}
           markers={visibleMarkers}
           routes={routesWithProgress}
-          polygons={visiblePolygons}
+          zones={visibleZones}
         />
       </AbsoluteFill>
-      
+
       {/* Markers Layer (rendered on top for better visibility) */}
       <AbsoluteFill style={{ pointerEvents: 'none' }}>
         <MarkerRenderer
@@ -246,9 +298,12 @@ export const PropertyClipComposition: React.FC<PropertyClipCompositionProps> = (
           viewState={viewState}
           width={width}
           height={height}
+          frame={frame}
+          fps={fps}
+          currentTimeMs={currentTimeMs}
         />
       </AbsoluteFill>
-      
+
       {/* Routes Animation Layer */}
       <AbsoluteFill style={{ pointerEvents: 'none' }}>
         <RouteRenderer
@@ -256,41 +311,52 @@ export const PropertyClipComposition: React.FC<PropertyClipCompositionProps> = (
           viewState={viewState}
           width={width}
           height={height}
+          frame={frame}
+          fps={fps}
+          currentTimeMs={currentTimeMs}
         />
       </AbsoluteFill>
-      
+
       {/* Overlays Layer */}
       <AbsoluteFill style={{ pointerEvents: 'none' }}>
         {/* Title Overlay */}
-        {config.overlays.title.enabled && (
+        {config.branding.title && (
           <TitleOverlay
-            text={config.overlays.title.text}
-            position={config.overlays.title.position}
-            style={config.overlays.title.style}
+            text={config.branding.title.text}
+            subtitle={config.branding.title.subtitle}
+            position={config.branding.title.position}
+            style={config.branding.title.style}
             animateIn={true}
+            animateOut={true}
             frame={frame}
             fps={fps}
+            fadeInDuration={config.branding.title.timing.fadeInDuration}
+            fadeOutDuration={config.branding.title.timing.fadeOutDuration}
+            fadeOutStart={config.branding.title.timing.endTime - config.branding.title.timing.fadeOutDuration}
           />
         )}
-        
+
         {/* Logo Overlay */}
-        {config.overlays.logo.enabled && config.overlays.logo.url && (
+        {config.branding.logo && config.branding.logo.url && (
           <LogoOverlay
-            url={config.overlays.logo.url}
-            position={config.overlays.logo.position}
-            size={config.overlays.logo.size}
+            url={config.branding.logo.url}
+            position={config.branding.logo.position}
+            size={config.branding.logo.width}
+            opacity={config.branding.logo.opacity}
             animateIn={true}
             frame={frame}
             fps={fps}
           />
         )}
-        
+
         {/* Watermark Overlay */}
-        {config.overlays.watermark.enabled && config.overlays.watermark.text && (
+        {config.branding.watermark && config.branding.watermark.text && (
           <WatermarkOverlay
-            text={config.overlays.watermark.text}
-            position={config.overlays.watermark.position}
-            opacity={config.overlays.watermark.opacity}
+            text={config.branding.watermark.text}
+            position={config.branding.watermark.position}
+            fontSize={config.branding.watermark.fontSize}
+            colour={config.branding.watermark.colour}
+            opacity={config.branding.watermark.opacity}
           />
         )}
       </AbsoluteFill>

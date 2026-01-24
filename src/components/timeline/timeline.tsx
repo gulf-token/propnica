@@ -375,7 +375,7 @@ export function Timeline() {
     selectElement({ type: 'keyframe', id });
   };
 
-  if (!isTimelineExpanded) {
+  if (!timelineExpanded) {
     return (
       <div className="h-10 bg-background border-t flex items-center justify-between px-4">
         <TransportControls />
@@ -407,7 +407,7 @@ export function Timeline() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  onClick={zoomTimelineOut}
+                  onClick={zoomOut}
                   disabled={timelineZoom <= MIN_ZOOM}
                 >
                   <ZoomOut className="h-3.5 w-3.5" />
@@ -428,7 +428,7 @@ export function Timeline() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  onClick={zoomTimelineIn}
+                  onClick={zoomIn}
                   disabled={timelineZoom >= MAX_ZOOM}
                 >
                   <ZoomIn className="h-3.5 w-3.5" />

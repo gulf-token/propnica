@@ -8,6 +8,7 @@ import type { OverlayPosition, TitleStyle } from '../../src/types';
 
 interface TitleOverlayProps {
   text: string;
+  subtitle?: string;
   position: OverlayPosition;
   style: TitleStyle;
   animateIn?: boolean;
@@ -33,19 +34,19 @@ function getPositionStyles(position: OverlayPosition): React.CSSProperties {
   switch (position) {
     case 'top-left':
       return { ...base, top: 0, left: 0 };
-    case 'top-center':
+    case 'top-centre':
       return { ...base, top: 0, left: '50%', transform: 'translateX(-50%)' };
     case 'top-right':
       return { ...base, top: 0, right: 0 };
-    case 'center-left':
+    case 'middle-left':
       return { ...base, top: '50%', left: 0, transform: 'translateY(-50%)' };
-    case 'center':
+    case 'middle-centre':
       return { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-    case 'center-right':
+    case 'middle-right':
       return { ...base, top: '50%', right: 0, transform: 'translateY(-50%)' };
     case 'bottom-left':
       return { ...base, bottom: 0, left: 0 };
-    case 'bottom-center':
+    case 'bottom-centre':
       return { ...base, bottom: 0, left: '50%', transform: 'translateX(-50%)' };
     case 'bottom-right':
       return { ...base, bottom: 0, right: 0 };
@@ -72,6 +73,7 @@ function getSlideDirection(position: OverlayPosition): { x: number; y: number } 
 
 export const TitleOverlay: React.FC<TitleOverlayProps> = ({
   text,
+  subtitle,
   position,
   style,
   animateIn = true,
@@ -83,14 +85,14 @@ export const TitleOverlay: React.FC<TitleOverlayProps> = ({
   fadeOutStart,
 }) => {
   const { durationInFrames } = useVideoConfig();
-  
+
   // Calculate animation values
   const fadeInFrames = Math.round(fadeInDuration * fps);
   const fadeOutFrames = Math.round(fadeOutDuration * fps);
   const fadeOutStartFrame = fadeOutStart
     ? Math.round(fadeOutStart * fps)
     : durationInFrames - fadeOutFrames;
-  
+
   // Entry animation (spring-based)
   const entryProgress = animateIn
     ? spring({
@@ -104,35 +106,36 @@ export const TitleOverlay: React.FC<TitleOverlayProps> = ({
         durationInFrames: fadeInFrames,
       })
     : 1;
-  
+
   // Exit animation
-  const exitProgress = animateOut && frame >= fadeOutStartFrame
-    ? interpolate(
-        frame,
-        [fadeOutStartFrame, fadeOutStartFrame + fadeOutFrames],
-        [1, 0],
-        { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-      )
-    : 1;
-  
+  const exitProgress =
+    animateOut && frame >= fadeOutStartFrame
+      ? interpolate(
+          frame,
+          [fadeOutStartFrame, fadeOutStartFrame + fadeOutFrames],
+          [1, 0],
+          { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+        )
+      : 1;
+
   // Combined opacity
   const opacity = entryProgress * exitProgress;
-  
+
   // Slide animation
   const slideDirection = getSlideDirection(position);
   const translateX = interpolate(entryProgress, [0, 1], [slideDirection.x, 0]);
   const translateY = interpolate(entryProgress, [0, 1], [slideDirection.y, 0]);
-  
+
   // Scale animation
   const scale = interpolate(entryProgress, [0, 1], [0.95, 1]);
-  
+
   // Get base position styles
   const positionStyles = getPositionStyles(position);
-  
+
   // Build transform string
   let transform = positionStyles.transform || '';
   transform += ` translate(${translateX}px, ${translateY}px) scale(${scale})`;
-  
+
   if (!text) return null;
 
   return (
@@ -144,8 +147,8 @@ export const TitleOverlay: React.FC<TitleOverlayProps> = ({
         fontFamily: style.fontFamily || 'Inter, system-ui, sans-serif',
         fontSize: style.fontSize || 32,
         fontWeight: style.fontWeight || 600,
-        color: style.color || '#ffffff',
-        backgroundColor: style.backgroundColor || 'rgba(0, 0, 0, 0.7)',
+        color: style.colour || '#ffffff',
+        backgroundColor: style.backgroundColour || 'rgba(0, 0, 0, 0.7)',
         borderRadius: style.borderRadius ?? 8,
         letterSpacing: style.letterSpacing ?? 0,
         textShadow: style.textShadow || '0 2px 4px rgba(0, 0, 0, 0.3)',
@@ -154,9 +157,24 @@ export const TitleOverlay: React.FC<TitleOverlayProps> = ({
         whiteSpace: 'pre-wrap',
         maxWidth: '80%',
         lineHeight: 1.4,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
       }}
     >
-      {text}
+      <span>{text}</span>
+      {subtitle && (
+        <span
+          style={{
+            fontSize: style.subtitleFontSize ?? (style.fontSize ? style.fontSize * 0.6 : 18),
+            color: style.subtitleColour ?? style.colour ?? '#ffffff',
+            opacity: 0.9,
+            fontWeight: 400,
+          }}
+        >
+          {subtitle}
+        </span>
+      )}
     </div>
   );
 };

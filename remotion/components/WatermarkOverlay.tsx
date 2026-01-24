@@ -11,7 +11,7 @@ interface WatermarkOverlayProps {
   opacity?: number;
   fontSize?: number;
   fontFamily?: string;
-  color?: string;
+  colour?: string;
 }
 
 // ===========================================
@@ -27,19 +27,19 @@ function getPositionStyles(position: OverlayPosition): React.CSSProperties {
   switch (position) {
     case 'top-left':
       return { ...base, top: 0, left: 0 };
-    case 'top-center':
+    case 'top-centre':
       return { ...base, top: 0, left: '50%', transform: 'translateX(-50%)' };
     case 'top-right':
       return { ...base, top: 0, right: 0 };
-    case 'center-left':
+    case 'middle-left':
       return { ...base, top: '50%', left: 0, transform: 'translateY(-50%)' };
-    case 'center':
+    case 'middle-centre':
       return { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-    case 'center-right':
+    case 'middle-right':
       return { ...base, top: '50%', right: 0, transform: 'translateY(-50%)' };
     case 'bottom-left':
       return { ...base, bottom: 0, left: 0 };
-    case 'bottom-center':
+    case 'bottom-centre':
       return { ...base, bottom: 0, left: '50%', transform: 'translateX(-50%)' };
     case 'bottom-right':
       return { ...base, bottom: 0, right: 0 };
@@ -58,10 +58,10 @@ export const WatermarkOverlay: React.FC<WatermarkOverlayProps> = ({
   opacity = 0.5,
   fontSize = 14,
   fontFamily = 'Inter, system-ui, sans-serif',
-  color = '#ffffff',
+  colour = '#ffffff',
 }) => {
   const positionStyles = getPositionStyles(position);
-  
+
   if (!text) return null;
 
   return (
@@ -72,7 +72,7 @@ export const WatermarkOverlay: React.FC<WatermarkOverlayProps> = ({
         fontFamily,
         fontSize,
         fontWeight: 500,
-        color,
+        color: colour,
         textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
         letterSpacing: 0.5,
         userSelect: 'none',

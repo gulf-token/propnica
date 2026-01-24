@@ -1,6 +1,5 @@
 import React from 'react';
-import { interpolate } from 'remotion';
-import type { Route } from '../../src/types';
+import type { Route, ElementTiming } from '../../src/types';
 
 // ===========================================
 // Types
@@ -22,6 +21,70 @@ interface RouteRendererProps {
   viewState: ViewState;
   width: number;
   height: number;
+  frame?: number;
+  fps?: number;
+  currentTimeMs?: number;
+}
+
+// ===========================================
+// Utility Functions
+// ===========================================
+
+/**
+ * Calculate element opacity based on timing configuration
+ */
+function calculateElementOpacity(
+  timing: ElementTiming,
+  currentTimeMs: number
+): number {
+  const { startTime, endTime, fadeInDuration, fadeOutDuration } = timing;
+
+  // Convert seconds to milliseconds (timing uses seconds)
+  const startMs = startTime * 1000;
+  const endMs = endTime * 1000;
+  const fadeInMs = fadeInDuration * 1000;
+  const fadeOutMs = fadeOutDuration * 1000;
+
+  // Before element should appear
+  if (currentTimeMs < startMs) {
+    return 0;
+  }
+
+  // During fade in
+  if (currentTimeMs < startMs + fadeInMs) {
+    return (currentTimeMs - startMs) / fadeInMs;
+  }
+
+  // During fade out
+  if (currentTimeMs > endMs - fadeOutMs && currentTimeMs <= endMs) {
+    return Math.max(0, (endMs - currentTimeMs) / fadeOutMs);
+  }
+
+  // After element should disappear
+  if (currentTimeMs > endMs) {
+    return 0;
+  }
+
+  // Fully visible
+  return 1;
+}
+
+/**
+ * Get dash array pattern based on route style
+ */
+function getDashPattern(
+  pattern: 'solid' | 'dashed' | 'dotted',
+  strokeWidth: number
+): string | undefined {
+  switch (pattern) {
+    case 'dashed':
+      return `${strokeWidth * 3} ${strokeWidth * 2}`;
+    case 'dotted':
+      return `${strokeWidth} ${strokeWidth * 2}`;
+    case 'solid':
+    default:
+      return undefined;
+  }
 }
 
 // ===========================================
@@ -35,21 +98,28 @@ function projectToScreen(
   height: number
 ): { x: number; y: number } {
   const { center, zoom, bearing } = viewState;
-  
+
   const scale = Math.pow(2, zoom) * 256;
-  
+
   const toMercator = (lng: number, lat: number) => {
     const x = ((lng + 180) / 360) * scale;
-    const y = ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * scale;
+    const y =
+      ((1 -
+        Math.log(
+          Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
+        ) /
+          Math.PI) /
+        2) *
+      scale;
     return { x, y };
   };
-  
+
   const centerMerc = toMercator(center[0], center[1]);
   const pointMerc = toMercator(coordinates[0], coordinates[1]);
-  
+
   let offsetX = pointMerc.x - centerMerc.x;
   let offsetY = pointMerc.y - centerMerc.y;
-  
+
   if (bearing !== 0) {
     const bearingRad = (bearing * Math.PI) / 180;
     const cos = Math.cos(bearingRad);
@@ -59,7 +129,7 @@ function projectToScreen(
     offsetX = rotatedX;
     offsetY = rotatedY;
   }
-  
+
   return {
     x: width / 2 + offsetX,
     y: height / 2 + offsetY,
@@ -77,28 +147,26 @@ function generateSVGPath(
   height: number
 ): string {
   if (coordinates.length < 2) return '';
-  
+
   const points = coordinates.map((coord) =>
     projectToScreen(coord, viewState, width, height)
   );
-  
+
   const pathCommands = points.map((point, index) => {
     if (index === 0) {
       return `M ${point.x} ${point.y}`;
     }
     return `L ${point.x} ${point.y}`;
   });
-  
+
   return pathCommands.join(' ');
 }
 
 function calculatePathLength(path: string): number {
-  // Create a temporary SVG element to measure path length
-  // This is a simplified calculation based on the number of points
   const commands = path.split(/[ML]/g).filter(Boolean);
   let length = 0;
   let prevPoint: { x: number; y: number } | null = null;
-  
+
   for (const command of commands) {
     const coords = command.trim().split(' ').map(Number);
     if (coords.length >= 2) {
@@ -111,7 +179,7 @@ function calculatePathLength(path: string): number {
       prevPoint = point;
     }
   }
-  
+
   return length;
 }
 
@@ -124,6 +192,7 @@ interface AnimatedRouteProps {
   viewState: ViewState;
   width: number;
   height: number;
+  timingOpacity: number;
 }
 
 const AnimatedRoute: React.FC<AnimatedRouteProps> = ({
@@ -131,63 +200,81 @@ const AnimatedRoute: React.FC<AnimatedRouteProps> = ({
   viewState,
   width,
   height,
+  timingOpacity,
 }) => {
   if (!route.coordinates || route.coordinates.length < 2) return null;
-  
+
   const pathD = generateSVGPath(route.coordinates, viewState, width, height);
   const pathLength = calculatePathLength(pathD);
-  
+
   const progress = route.animationProgress ?? 1;
   const visibleLength = pathLength * progress;
   const dashOffset = pathLength - visibleLength;
-  
-  const color = route.color || '#3b82f6';
-  const strokeWidth = route.width ?? 4;
-  const opacity = route.opacity ?? 1;
-  
+
+  // Access nested style properties
+  const colour = route.style.colour ?? '#3b82f6';
+  const strokeWidth = route.style.width ?? 4;
+  const styleOpacity = route.style.opacity ?? 1;
+  const dashPattern = route.style.dashPattern ?? 'solid';
+
+  // Combine style opacity with timing opacity
+  const finalOpacity = styleOpacity * timingOpacity;
+
+  // Check if route is animated
+  const isAnimated = route.animation.type !== 'none';
+
+  // Get dash pattern for non-solid lines (only when not using draw animation)
+  const strokeDasharray =
+    isAnimated && route.animation.type === 'draw'
+      ? pathLength
+      : getDashPattern(dashPattern, strokeWidth);
+
   // Calculate glow effect
-  const glowColor = color;
-  const glowOpacity = opacity * 0.3;
-  
+  const glowOpacity = finalOpacity * 0.3;
+
   return (
-    <g>
+    <g opacity={finalOpacity}>
       {/* Glow layer */}
       <path
         d={pathD}
         fill="none"
-        stroke={glowColor}
+        stroke={colour}
         strokeWidth={strokeWidth * 3}
         strokeOpacity={glowOpacity}
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeDasharray={pathLength}
-        strokeDashoffset={dashOffset}
+        strokeDasharray={isAnimated ? pathLength : strokeDasharray}
+        strokeDashoffset={isAnimated ? dashOffset : 0}
         style={{ filter: 'blur(4px)' }}
       />
-      
+
       {/* Main route line */}
       <path
         d={pathD}
         fill="none"
-        stroke={color}
+        stroke={colour}
         strokeWidth={strokeWidth}
-        strokeOpacity={opacity}
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeDasharray={pathLength}
-        strokeDashoffset={dashOffset}
+        strokeDasharray={isAnimated ? pathLength : strokeDasharray}
+        strokeDashoffset={isAnimated ? dashOffset : 0}
       />
-      
+
       {/* Animated dot at the end of the route (when animating) */}
-      {route.animated && progress > 0 && progress < 1 && (
+      {isAnimated && progress > 0 && progress < 1 && (
         <AnimatedDot
           coordinates={route.coordinates}
           progress={progress}
           viewState={viewState}
           width={width}
           height={height}
-          color={color}
+          colour={colour}
         />
+      )}
+
+      {/* Pulse effect for pulse animation type */}
+      {route.animation.type === 'pulse' && progress >= 1 && (
+        <PulseEffect pathD={pathD} colour={colour} strokeWidth={strokeWidth} />
       )}
     </g>
   );
@@ -203,7 +290,7 @@ interface AnimatedDotProps {
   viewState: ViewState;
   width: number;
   height: number;
-  color: string;
+  colour: string;
 }
 
 const AnimatedDot: React.FC<AnimatedDotProps> = ({
@@ -212,15 +299,19 @@ const AnimatedDot: React.FC<AnimatedDotProps> = ({
   viewState,
   width,
   height,
-  color,
+  colour,
 }) => {
-  // Find the position along the path at the given progress
   if (coordinates.length < 2) return null;
-  
+
   // Calculate total path length and find position
   let totalLength = 0;
-  const segments: { start: [number, number]; end: [number, number]; length: number; startLength: number }[] = [];
-  
+  const segments: {
+    start: [number, number];
+    end: [number, number];
+    length: number;
+    startLength: number;
+  }[] = [];
+
   for (let i = 0; i < coordinates.length - 1; i++) {
     const start = coordinates[i];
     const end = coordinates[i + 1];
@@ -230,14 +321,18 @@ const AnimatedDot: React.FC<AnimatedDotProps> = ({
     segments.push({ start, end, length, startLength: totalLength });
     totalLength += length;
   }
-  
+
   const targetLength = totalLength * progress;
-  
+
   // Find the segment containing this position
   let position: [number, number] = coordinates[0];
   for (const segment of segments) {
-    if (targetLength >= segment.startLength && targetLength <= segment.startLength + segment.length) {
-      const segmentProgress = (targetLength - segment.startLength) / segment.length;
+    if (
+      targetLength >= segment.startLength &&
+      targetLength <= segment.startLength + segment.length
+    ) {
+      const segmentProgress =
+        (targetLength - segment.startLength) / segment.length;
       position = [
         segment.start[0] + (segment.end[0] - segment.start[0]) * segmentProgress,
         segment.start[1] + (segment.end[1] - segment.start[1]) * segmentProgress,
@@ -245,12 +340,12 @@ const AnimatedDot: React.FC<AnimatedDotProps> = ({
       break;
     }
   }
-  
+
   const screenPos = projectToScreen(position, viewState, width, height);
-  
+
   // Pulsing animation
   const pulseScale = 1 + Math.sin(progress * Math.PI * 8) * 0.2;
-  
+
   return (
     <g>
       {/* Outer glow */}
@@ -258,24 +353,46 @@ const AnimatedDot: React.FC<AnimatedDotProps> = ({
         cx={screenPos.x}
         cy={screenPos.y}
         r={12 * pulseScale}
-        fill={color}
+        fill={colour}
         fillOpacity={0.3}
         style={{ filter: 'blur(4px)' }}
       />
       {/* Inner dot */}
-      <circle
-        cx={screenPos.x}
-        cy={screenPos.y}
-        r={6}
-        fill={color}
-      />
-      <circle
-        cx={screenPos.x}
-        cy={screenPos.y}
-        r={3}
-        fill="white"
-      />
+      <circle cx={screenPos.x} cy={screenPos.y} r={6} fill={colour} />
+      <circle cx={screenPos.x} cy={screenPos.y} r={3} fill="white" />
     </g>
+  );
+};
+
+// ===========================================
+// Pulse Effect Component
+// ===========================================
+
+interface PulseEffectProps {
+  pathD: string;
+  colour: string;
+  strokeWidth: number;
+}
+
+const PulseEffect: React.FC<PulseEffectProps> = ({
+  pathD,
+  colour,
+  strokeWidth,
+}) => {
+  return (
+    <path
+      d={pathD}
+      fill="none"
+      stroke={colour}
+      strokeWidth={strokeWidth * 2}
+      strokeOpacity={0.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        filter: 'blur(6px)',
+        animation: 'pulse 2s ease-in-out infinite',
+      }}
+    />
   );
 };
 
@@ -288,7 +405,13 @@ export const RouteRenderer: React.FC<RouteRendererProps> = ({
   viewState,
   width,
   height,
+  frame = 0,
+  fps = 30,
+  currentTimeMs,
 }) => {
+  // Calculate current time in milliseconds from frame if not provided
+  const timeMs = currentTimeMs ?? (frame / fps) * 1000;
+
   return (
     <svg
       width={width}
@@ -300,15 +423,34 @@ export const RouteRenderer: React.FC<RouteRendererProps> = ({
         pointerEvents: 'none',
       }}
     >
-      {routes.map((route) => (
-        <AnimatedRoute
-          key={route.id}
-          route={route}
-          viewState={viewState}
-          width={width}
-          height={height}
-        />
-      ))}
+      <defs>
+        <style>
+          {`
+            @keyframes pulse {
+              0%, 100% { opacity: 0.3; }
+              50% { opacity: 0.6; }
+            }
+          `}
+        </style>
+      </defs>
+      {routes.map((route) => {
+        // Calculate timing-based opacity
+        const timingOpacity = calculateElementOpacity(route.timing, timeMs);
+
+        // Skip routes that are not visible
+        if (timingOpacity === 0) return null;
+
+        return (
+          <AnimatedRoute
+            key={route.id}
+            route={route}
+            viewState={viewState}
+            width={width}
+            height={height}
+            timingOpacity={timingOpacity}
+          />
+        );
+      })}
     </svg>
   );
 };

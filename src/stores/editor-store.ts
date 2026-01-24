@@ -117,6 +117,7 @@ interface EditorState {
   // Aliases for backwards compatibility
   drawingPoints: [number, number][];
   setSelectedTool: (tool: EditorTool) => void;
+}
 
 // ===========================================
 // Editor Store

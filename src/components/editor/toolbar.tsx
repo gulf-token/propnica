@@ -106,20 +106,30 @@ function ToolButton({ tool, isActive, onClick }: ToolButtonProps) {
 }
 
 // ===========================================
+// Toolbar Props
+// ===========================================
+
+interface ToolbarProps {
+  onPreview: () => void;
+  onExport: () => void;
+  onOpenShortcuts: () => void;
+  onOpenSettings: () => void;
+}
+
+// ===========================================
 // Toolbar Component
 // ===========================================
 
-export function Toolbar() {
+export function Toolbar({
+  onPreview,
+  onExport,
+  onOpenShortcuts,
+  onOpenSettings,
+}: ToolbarProps) {
   const selectedTool = useEditorStore((state) => state.selectedTool);
   const setTool = useEditorStore((state) => state.setTool);
   const snapToGrid = useEditorStore((state) => state.snapToGrid);
   const toggleSnapToGrid = useEditorStore((state) => state.toggleSnapToGrid);
-  const openPreviewModal = useEditorStore((state) => state.openPreviewModal);
-  const openRenderModal = useEditorStore((state) => state.openRenderModal);
-  const openSettingsModal = useEditorStore((state) => state.openSettingsModal);
-  const openKeyboardShortcutsModal = useEditorStore(
-    (state) => state.openKeyboardShortcutsModal
-  );
 
   const canUndo = useProjectStore((state) => state.canUndo());
   const canRedo = useProjectStore((state) => state.canRedo());
@@ -252,7 +262,7 @@ export function Toolbar() {
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
-                onClick={openPreviewModal}
+                onClick={onPreview}
                 className="tool-button"
                 aria-label="Preview"
               >
@@ -270,7 +280,7 @@ export function Toolbar() {
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
-                onClick={openRenderModal}
+                onClick={onExport}
                 className="tool-button"
                 aria-label="Export Video"
               >
@@ -290,7 +300,7 @@ export function Toolbar() {
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
-                onClick={openKeyboardShortcutsModal}
+                onClick={onOpenShortcuts}
                 className="tool-button"
                 aria-label="Keyboard Shortcuts"
               >
@@ -308,7 +318,7 @@ export function Toolbar() {
           <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <button
-                onClick={openSettingsModal}
+                onClick={onOpenSettings}
                 className="tool-button"
                 aria-label="Settings"
               >

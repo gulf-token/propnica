@@ -190,6 +190,7 @@ export interface ElementTiming {
 
 export interface BrandingConfig {
   logo?: LogoConfig;
+  title?: TitleConfig;
   watermark?: WatermarkConfig;
   colours: BrandColours;
 }
@@ -209,10 +210,35 @@ export interface WatermarkConfig {
   opacity: number;
 }
 
+export interface TitleConfig {
+  text: string;
+  subtitle?: string;
+  position: OverlayPosition;
+  style: TitleStyle;
+  timing: ElementTiming;
+}
+
+export interface TitleStyle {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'bold' | number;
+  colour: string;
+  backgroundColour?: string;
+  backgroundOpacity?: number;
+  borderRadius?: number;
+  letterSpacing?: number;
+  textShadow?: string;
+  subtitleFontSize?: number;
+  subtitleColour?: string;
+}
+
 export type OverlayPosition =
   | 'top-left'
   | 'top-centre'
   | 'top-right'
+  | 'middle-left'
+  | 'middle-centre'
+  | 'middle-right'
   | 'bottom-left'
   | 'bottom-centre'
   | 'bottom-right';

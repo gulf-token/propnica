@@ -164,7 +164,7 @@ export function RenderModal({ open, onOpenChange, projectId }: RenderModalProps)
   const [error, setError] = React.useState<string | null>(null);
 
   // tRPC mutations
-  const startRender = trpc.renders.start.useMutation({
+  const startRender = trpc.renders.create.useMutation({
     onSuccess: (data) => {
       setRenderId(data.id);
       setStatus('queued');
@@ -176,7 +176,7 @@ export function RenderModal({ open, onOpenChange, projectId }: RenderModalProps)
   });
 
   // Poll for render status
-  const { data: renderStatus } = trpc.renders.getStatus.useQuery(
+  const { data: renderStatus } = trpc.renders.get.useQuery(
     { id: renderId! },
     {
       enabled: !!renderId && (status === 'queued' || status === 'processing'),
@@ -190,7 +190,7 @@ export function RenderModal({ open, onOpenChange, projectId }: RenderModalProps)
       if (renderStatus.status === 'PROCESSING') {
         setStatus('processing');
         setProgress(renderStatus.progress || 0);
-      } else if (renderStatus.status === 'COMPLETED') {
+      } else if (renderStatus.status === 'COMPLETE') {
         setStatus('completed');
         setProgress(100);
         setDownloadUrl(renderStatus.outputUrl || null);
@@ -213,17 +213,9 @@ export function RenderModal({ open, onOpenChange, projectId }: RenderModalProps)
   }, [open]);
 
   const handleStartRender = () => {
-    const resolution = RESOLUTIONS.find((r) => r.value === settings.resolution);
-    
     startRender.mutate({
       projectId,
-      settings: {
-        width: resolution?.width || 1920,
-        height: resolution?.height || 1080,
-        fps: settings.fps,
-        format: settings.format,
-        quality: settings.quality,
-      },
+      resolution: settings.resolution,
     });
   };
 

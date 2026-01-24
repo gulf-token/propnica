@@ -19,15 +19,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator,
   Slider,
-  Switch,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
   Textarea,
 } from '@/components/ui';
+import type { MapStyle, ResolutionPreset } from '@/types';
 
 // ===========================================
 // Settings Modal Component
@@ -39,37 +38,32 @@ export interface SettingsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Map style options
-const mapStyles = [
-  { value: 'mapbox://styles/mapbox/streets-v12', label: 'Streets' },
-  { value: 'mapbox://styles/mapbox/outdoors-v12', label: 'Outdoors' },
-  { value: 'mapbox://styles/mapbox/light-v11', label: 'Light' },
-  { value: 'mapbox://styles/mapbox/dark-v11', label: 'Dark' },
-  { value: 'mapbox://styles/mapbox/satellite-v9', label: 'Satellite' },
-  { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: 'Satellite Streets' },
-  { value: 'mapbox://styles/mapbox/navigation-day-v1', label: 'Navigation Day' },
-  { value: 'mapbox://styles/mapbox/navigation-night-v1', label: 'Navigation Night' },
+// Map style options - matching the MapStyle type
+const mapStyles: { value: MapStyle; label: string }[] = [
+  { value: 'satellite', label: 'Satellite' },
+  { value: 'satellite-streets', label: 'Satellite Streets' },
+  { value: 'streets', label: 'Streets' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
 ];
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
-  const projectId = useProjectStore((state) => state.id);
-  const projectName = useProjectStore((state) => state.name);
-  const projectDescription = useProjectStore((state) => state.description);
-  const settings = useProjectStore((state) => state.settings);
-  const setName = useProjectStore((state) => state.setName);
-  const setDescription = useProjectStore((state) => state.setDescription);
+  // Store state - using correct property names from project-store.ts
+  const projectId = useProjectStore((state) => state.projectId);
+  const projectName = useProjectStore((state) => state.projectName);
+  const projectDescription = useProjectStore((state) => state.projectDescription);
+  const config = useProjectStore((state) => state.config);
+  const updateProjectMeta = useProjectStore((state) => state.updateProjectMeta);
   const updateSettings = useProjectStore((state) => state.updateSettings);
+  const updateMapSettings = useProjectStore((state) => state.updateMapSettings);
 
-  // Local state for form
+  // Local state for form - using correct property names from types
   const [name, setLocalName] = React.useState(projectName);
   const [description, setLocalDescription] = React.useState(projectDescription || '');
-  const [resolution, setResolution] = React.useState(settings.resolution);
-  const [frameRate, setFrameRate] = React.useState(settings.frameRate);
-  const [duration, setDuration] = React.useState(settings.duration);
-  const [mapStyle, setMapStyle] = React.useState(settings.mapStyle);
-  const [show3DBuildings, setShow3DBuildings] = React.useState(settings.show3DBuildings ?? true);
-  const [showLabels, setShowLabels] = React.useState(settings.showLabels ?? true);
-  const [backgroundColor, setBackgroundColor] = React.useState(settings.backgroundColor ?? '#000000');
+  const [resolution, setResolution] = React.useState<ResolutionPreset>(config.settings.resolution);
+  const [fps, setFps] = React.useState(config.settings.fps);
+  const [duration, setDuration] = React.useState(config.settings.duration);
+  const [mapStyle, setMapStyle] = React.useState<MapStyle>(config.mapSettings.style);
 
   // Update mutation
   const updateProject = trpc.projects.update.useMutation();
@@ -79,44 +73,43 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     if (open) {
       setLocalName(projectName);
       setLocalDescription(projectDescription || '');
-      setResolution(settings.resolution);
-      setFrameRate(settings.frameRate);
-      setDuration(settings.duration);
-      setMapStyle(settings.mapStyle);
-      setShow3DBuildings(settings.show3DBuildings ?? true);
-      setShowLabels(settings.showLabels ?? true);
-      setBackgroundColor(settings.backgroundColor ?? '#000000');
+      setResolution(config.settings.resolution);
+      setFps(config.settings.fps);
+      setDuration(config.settings.duration);
+      setMapStyle(config.mapSettings.style);
     }
-  }, [open, projectName, projectDescription, settings]);
+  }, [open, projectName, projectDescription, config]);
 
   const handleSave = () => {
     // Update store
-    setName(name);
-    setDescription(description || undefined);
+    updateProjectMeta(name, description || null);
     updateSettings({
       resolution,
-      frameRate,
+      fps,
       duration,
-      mapStyle,
-      show3DBuildings,
-      showLabels,
-      backgroundColor,
+    });
+    updateMapSettings({
+      style: mapStyle,
     });
 
-    // Save to server
+    // Save to server - using `config` not `settings`
     if (projectId) {
       updateProject.mutate({
         id: projectId,
         name,
-        description: description || undefined,
-        settings: {
-          resolution,
-          frameRate,
-          duration,
-          mapStyle,
-          show3DBuildings,
-          showLabels,
-          backgroundColor,
+        description: description || null,
+        config: {
+          ...config,
+          settings: {
+            ...config.settings,
+            resolution,
+            fps,
+            duration,
+          },
+          mapSettings: {
+            ...config.mapSettings,
+            style: mapStyle,
+          },
         },
       });
     }
@@ -169,7 +162,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <TabsContent value="video" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="resolution">Resolution</Label>
-              <Select value={resolution} onValueChange={setResolution}>
+              <Select value={resolution} onValueChange={(v) => setResolution(v as ResolutionPreset)}>
                 <SelectTrigger id="resolution">
                   <SelectValue placeholder="Select resolution" />
                 </SelectTrigger>
@@ -182,12 +175,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="frameRate">Frame Rate</Label>
+              <Label htmlFor="fps">Frame Rate</Label>
               <Select
-                value={String(frameRate)}
-                onValueChange={(v) => setFrameRate(Number(v))}
+                value={String(fps)}
+                onValueChange={(v) => setFps(Number(v))}
               >
-                <SelectTrigger id="frameRate">
+                <SelectTrigger id="fps">
                   <SelectValue placeholder="Select frame rate" />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,32 +210,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <span>5:00</span>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="backgroundColor">Background Colour</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="backgroundColor"
-                  type="color"
-                  value={backgroundColor}
-                  onChange={(e) => setBackgroundColor(e.target.value)}
-                  className="w-12 h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  value={backgroundColor}
-                  onChange={(e) => setBackgroundColor(e.target.value)}
-                  placeholder="#000000"
-                  className="flex-1 font-mono"
-                />
-              </div>
-            </div>
           </TabsContent>
 
           {/* Map Settings */}
           <TabsContent value="map" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="mapStyle">Map Style</Label>
-              <Select value={mapStyle} onValueChange={setMapStyle}>
+              <Select value={mapStyle} onValueChange={(v) => setMapStyle(v as MapStyle)}>
                 <SelectTrigger id="mapStyle">
                   <SelectValue placeholder="Select map style" />
                 </SelectTrigger>
@@ -254,36 +228,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="show3DBuildings">3D Buildings</Label>
-                <p className="text-sm text-muted-foreground">
-                  Show extruded 3D buildings on the map
-                </p>
-              </div>
-              <Switch
-                id="show3DBuildings"
-                checked={show3DBuildings}
-                onCheckedChange={setShow3DBuildings}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="showLabels">Map Labels</Label>
-                <p className="text-sm text-muted-foreground">
-                  Show place names and road labels
-                </p>
-              </div>
-              <Switch
-                id="showLabels"
-                checked={showLabels}
-                onCheckedChange={setShowLabels}
-              />
             </div>
           </TabsContent>
         </Tabs>
