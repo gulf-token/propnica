@@ -1,0 +1,519 @@
+{
+  "version": "1.0.0",
+  "settings": {
+    "duration": 90,
+    "fps": 30,
+    "resolution": "1080p"
+  },
+  "mapSettings": {
+    "style": "satellite"
+  },
+  "keyframes": [
+    {
+      "id": "kf-001",
+      "name": "Wide Dubai View",
+      "time": 0,
+      "duration": 5,
+      "camera": {
+        "centre": [55.15, 25.12],
+        "zoom": 10.5,
+        "bearing": 0,
+        "pitch": 0
+      },
+      "easing": "easeOutCubic"
+    },
+    {
+      "id": "kf-002",
+      "name": "Approach Dubai Creek",
+      "time": 8,
+      "duration": 6,
+      "camera": {
+        "centre": [55.30, 25.20],
+        "zoom": 12,
+        "bearing": 30,
+        "pitch": 45
+      },
+      "easing": "easeInOutCubic"
+    },
+    {
+      "id": "kf-003",
+      "name": "Dubai Creek Harbour Overview",
+      "time": 18,
+      "duration": 8,
+      "camera": {
+        "centre": [55.3477, 25.2069],
+        "zoom": 14,
+        "bearing": 45,
+        "pitch": 50
+      },
+      "easing": "easeInOutCubic"
+    },
+    {
+      "id": "kf-004",
+      "name": "Property Boundary View",
+      "time": 28,
+      "duration": 10,
+      "camera": {
+        "centre": [55.3477, 25.2069],
+        "zoom": 15,
+        "bearing": 60,
+        "pitch": 55
+      },
+      "easing": "easeInOutCubic"
+    },
+    {
+      "id": "kf-005",
+      "name": "Airport Connection",
+      "time": 42,
+      "duration": 8,
+      "camera": {
+        "centre": [55.36, 25.23],
+        "zoom": 13,
+        "bearing": 15,
+        "pitch": 45
+      },
+      "easing": "easeInOutCubic"
+    },
+    {
+      "id": "kf-006",
+      "name": "Downtown Connection",
+      "time": 54,
+      "duration": 8,
+      "camera": {
+        "centre": [55.31, 25.20],
+        "zoom": 13,
+        "bearing": -30,
+        "pitch": 45
+      },
+      "easing": "easeInOutCubic"
+    },
+    {
+      "id": "kf-007",
+      "name": "Return to Property",
+      "time": 66,
+      "duration": 10,
+      "camera": {
+        "centre": [55.3477, 25.2069],
+        "zoom": 14.5,
+        "bearing": 90,
+        "pitch": 50
+      },
+      "easing": "easeInOutCubic"
+    },
+    {
+      "id": "kf-008",
+      "name": "Final View",
+      "time": 80,
+      "duration": 10,
+      "camera": {
+        "centre": [55.3477, 25.2069],
+        "zoom": 15.5,
+        "bearing": 120,
+        "pitch": 60
+      },
+      "easing": "easeOutCubic"
+    }
+  ],
+  "zones": [
+    {
+      "id": "zone-001",
+      "name": "Dubai Creek Harbour",
+      "coordinates": [
+        [55.3397, 25.2119],
+        [55.3557, 25.2119],
+        [55.3577, 25.2039],
+        [55.3537, 25.1999],
+        [55.3417, 25.1999],
+        [55.3377, 25.2039],
+        [55.3397, 25.2119]
+      ],
+      "style": {
+        "fillColour": "rgba(220, 38, 38, 0.15)",
+        "fillOpacity": 0.15,
+        "strokeColour": "#DC2626",
+        "strokeWidth": 4,
+        "strokeOpacity": 1
+      },
+      "label": {
+        "text": "DUBAI CREEK HARBOUR",
+        "fontSize": 16,
+        "fontColour": "#FFFFFF",
+        "visible": true
+      },
+      "timing": {
+        "startTime": 15,
+        "endTime": 90,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "zone-002",
+      "name": "Dubai Creek Tower",
+      "coordinates": [
+        [55.3457, 25.2089],
+        [55.3517, 25.2089],
+        [55.3517, 25.2049],
+        [55.3457, 25.2049],
+        [55.3457, 25.2089]
+      ],
+      "style": {
+        "fillColour": "rgba(59, 130, 246, 0.25)",
+        "fillOpacity": 0.25,
+        "strokeColour": "#3B82F6",
+        "strokeWidth": 3,
+        "strokeOpacity": 1
+      },
+      "label": {
+        "text": "DUBAI CREEK TOWER",
+        "fontSize": 14,
+        "fontColour": "#FFFFFF",
+        "visible": true
+      },
+      "timing": {
+        "startTime": 25,
+        "endTime": 90,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    }
+  ],
+  "routes": [
+    {
+      "id": "route-001",
+      "name": "To Airport",
+      "coordinates": [
+        [55.3477, 25.2069],
+        [55.3550, 25.2200],
+        [55.3600, 25.2400],
+        [55.3644, 25.2532]
+      ],
+      "style": {
+        "colour": "#FFFFFF",
+        "width": 4,
+        "opacity": 1,
+        "dashPattern": "dashed"
+      },
+      "label": {
+        "text": "To Airport",
+        "travelTime": "15 minutes",
+        "distance": "8 km",
+        "visible": true
+      },
+      "animation": {
+        "type": "draw",
+        "duration": 2
+      },
+      "timing": {
+        "startTime": 38,
+        "endTime": 55,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "route-002",
+      "name": "To Downtown",
+      "coordinates": [
+        [55.3477, 25.2069],
+        [55.3200, 25.2050],
+        [55.2900, 25.2000],
+        [55.2744, 25.1972]
+      ],
+      "style": {
+        "colour": "#F59E0B",
+        "width": 4,
+        "opacity": 1,
+        "dashPattern": "dashed"
+      },
+      "label": {
+        "text": "To Downtown",
+        "travelTime": "10 minutes",
+        "distance": "6 km",
+        "visible": true
+      },
+      "animation": {
+        "type": "draw",
+        "duration": 2
+      },
+      "timing": {
+        "startTime": 50,
+        "endTime": 68,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "route-003",
+      "name": "To Business Bay",
+      "coordinates": [
+        [55.3477, 25.2069],
+        [55.3100, 25.1950],
+        [55.2653, 25.1857]
+      ],
+      "style": {
+        "colour": "#10B981",
+        "width": 3,
+        "opacity": 1,
+        "dashPattern": "dashed"
+      },
+      "label": {
+        "text": "To Business Bay",
+        "travelTime": "12 minutes",
+        "distance": "7 km",
+        "visible": true
+      },
+      "animation": {
+        "type": "draw",
+        "duration": 1.5
+      },
+      "timing": {
+        "startTime": 60,
+        "endTime": 78,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    }
+  ],
+  "textMarkers": [
+    {
+      "id": "marker-001",
+      "position": [55.3477, 25.2100],
+      "text": "Dubai Creek Harbour",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 18,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(220, 38, 38, 0.9)",
+        "backgroundOpacity": 0.9,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "icon": {
+        "type": "building",
+        "colour": "#FFFFFF",
+        "size": 24
+      },
+      "timing": {
+        "startTime": 18,
+        "endTime": 90,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-002",
+      "position": [55.3644, 25.2532],
+      "text": "Dubai International Airport",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 14,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(0, 0, 0, 0.8)",
+        "backgroundOpacity": 0.8,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "icon": {
+        "type": "plane",
+        "colour": "#60A5FA",
+        "size": 24
+      },
+      "timing": {
+        "startTime": 38,
+        "endTime": 55,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-003",
+      "position": [55.2744, 25.1972],
+      "text": "Downtown Dubai",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 14,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(0, 0, 0, 0.8)",
+        "backgroundOpacity": 0.8,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "icon": {
+        "type": "building",
+        "colour": "#F59E0B",
+        "size": 24
+      },
+      "timing": {
+        "startTime": 50,
+        "endTime": 68,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-004",
+      "position": [55.2744, 25.1975],
+      "text": "Burj Khalifa",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 12,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(245, 158, 11, 0.9)",
+        "backgroundOpacity": 0.9,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "icon": {
+        "type": "landmark",
+        "colour": "#FFFFFF",
+        "size": 24
+      },
+      "timing": {
+        "startTime": 52,
+        "endTime": 68,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-005",
+      "position": [55.2653, 25.1857],
+      "text": "Business Bay",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 14,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(0, 0, 0, 0.8)",
+        "backgroundOpacity": 0.8,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "icon": {
+        "type": "briefcase",
+        "colour": "#10B981",
+        "size": 24
+      },
+      "timing": {
+        "startTime": 60,
+        "endTime": 78,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-006",
+      "position": [55.3197, 25.2622],
+      "text": "Dubai Creek",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 12,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(59, 130, 246, 0.8)",
+        "backgroundOpacity": 0.8,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "icon": {
+        "type": "water",
+        "colour": "#FFFFFF",
+        "size": 24
+      },
+      "timing": {
+        "startTime": 8,
+        "endTime": 40,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-007",
+      "position": [55.3580, 25.2350],
+      "text": "15 min",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 14,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(99, 102, 241, 0.9)",
+        "backgroundOpacity": 0.9,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "timing": {
+        "startTime": 42,
+        "endTime": 55,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-008",
+      "position": [55.3050, 25.2020],
+      "text": "10 min",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 14,
+        "fontColour": "#1F2937",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(245, 158, 11, 0.9)",
+        "backgroundOpacity": 0.9,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "timing": {
+        "startTime": 54,
+        "endTime": 68,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    },
+    {
+      "id": "marker-009",
+      "position": [55.2880, 25.1900],
+      "text": "12 min",
+      "style": {
+        "fontFamily": "Inter, system-ui, sans-serif",
+        "fontSize": 14,
+        "fontColour": "#FFFFFF",
+        "fontWeight": "bold",
+        "backgroundColour": "rgba(16, 185, 129, 0.9)",
+        "backgroundOpacity": 0.9,
+        "padding": 8,
+        "borderRadius": 4
+      },
+      "timing": {
+        "startTime": 62,
+        "endTime": 78,
+        "fadeInDuration": 0.5,
+        "fadeOutDuration": 0.5
+      }
+    }
+  ],
+  "branding": {
+    "logo": {
+      "url": "/logo.png",
+      "position": "top-left",
+      "width": 120,
+      "opacity": 0.9
+    },
+    "watermark": {
+      "text": "PropertyClips",
+      "position": "bottom-right",
+      "fontSize": 12,
+      "colour": "#FFFFFF",
+      "opacity": 0.6
+    },
+    "colours": {
+      "primary": "#DC2626",
+      "secondary": "#3B82F6",
+      "accent": "#F59E0B"
+    }
+  }
+}

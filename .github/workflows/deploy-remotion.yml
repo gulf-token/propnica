@@ -1,0 +1,263 @@
+name: Deploy Remotion Lambda
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'remotion/**'
+      - 'infrastructure/terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+  AWS_REGION: 'me-south-1'
+
+jobs:
+  # ===========================================
+  # Build Remotion Bundle
+  # ===========================================
+  build-remotion:
+    name: Build Remotion Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Remotion bundle
+        run: pnpm remotion:bundle
+        env:
+          REMOTION_WEBPACK_OVERRIDE: 'remotion/webpack-override.ts'
+
+      - name: Upload Remotion bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: remotion-bundle
+          path: remotion/bundle/
+          retention-days: 7
+
+  # ===========================================
+  # Deploy Lambda Function
+  # ===========================================
+  deploy-lambda:
+    name: Deploy Lambda Function
+    runs-on: ubuntu-latest
+    needs: build-remotion
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Remotion bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: remotion-bundle
+          path: remotion/bundle/
+
+      - name: Deploy Remotion Lambda
+        run: pnpm remotion:lambda:deploy
+        env:
+          REMOTION_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          REMOTION_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          REMOTION_AWS_REGION: ${{ env.AWS_REGION }}
+
+      - name: Update Lambda function configuration
+        run: |
+          aws lambda update-function-configuration \
+            --function-name propertyclips-remotion-render \
+            --timeout 900 \
+            --memory-size 3008 \
+            --environment "Variables={NODE_ENV=production,REMOTION_SERVE_URL=${{ secrets.REMOTION_SERVE_URL }}}"
+
+  # ===========================================
+  # Deploy S3 Assets
+  # ===========================================
+  deploy-assets:
+    name: Deploy S3 Assets
+    runs-on: ubuntu-latest
+    needs: deploy-lambda
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync Remotion assets to S3
+        run: |
+          aws s3 sync remotion/public/ s3://${{ secrets.S3_ASSETS_BUCKET }}/remotion/ \
+            --cache-control "public, max-age=31536000" \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/remotion/*"
+        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+
+  # ===========================================
+  # Infrastructure Updates (Terraform)
+  # ===========================================
+  terraform:
+    name: Apply Terraform Changes
+    runs-on: ubuntu-latest
+    needs: deploy-lambda
+    if: |
+      github.event_name == 'push' && 
+      contains(github.event.head_commit.modified, 'infrastructure/terraform/')
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.6.0'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_environment: ${{ github.event.inputs.environment || 'production' }}
+          TF_VAR_aws_region: ${{ env.AWS_REGION }}
+          TF_VAR_supabase_url: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          TF_VAR_supabase_key: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_environment: ${{ github.event.inputs.environment || 'production' }}
+          TF_VAR_aws_region: ${{ env.AWS_REGION }}
+          TF_VAR_supabase_url: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          TF_VAR_supabase_key: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  # ===========================================
+  # Verify Deployment
+  # ===========================================
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-lambda, deploy-assets]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Test Lambda function
+        run: |
+          RESPONSE=$(aws lambda invoke \
+            --function-name propertyclips-remotion-render \
+            --payload '{"action": "health-check"}' \
+            --cli-binary-format raw-in-base64-out \
+            response.json)
+          
+          echo "Lambda response: $RESPONSE"
+          cat response.json
+          
+          if grep -q '"status":"healthy"' response.json; then
+            echo "Lambda health check passed"
+          else
+            echo "Lambda health check failed"
+            exit 1
+          fi
+
+      - name: Verify S3 bucket accessibility
+        run: |
+          aws s3 ls s3://${{ secrets.S3_RENDERS_BUCKET }}/ --max-items 1
+
+      - name: Notify deployment success
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Remotion Lambda Deployed Successfully",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*PropertyClips Remotion Lambda Deployed*\n\nEnvironment: ${{ github.event.inputs.environment || 'production' }}\nRegion: ${{ env.AWS_REGION }}\nCommit: ${{ github.sha }}\n\nAll health checks passed."
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        if: success()

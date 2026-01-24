@@ -1,0 +1,294 @@
+'use client';
+
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, Clock, Star, Loader2 } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
+import {
+  Button,
+  Card,
+  CardContent,
+  Input,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui';
+
+// ===========================================
+// Templates Page
+// ===========================================
+
+interface Template {
+  id: string;
+  name: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  category: string;
+  isPremium: boolean;
+  usageCount: number;
+  createdAt: Date;
+}
+
+export default function TemplatesPage() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState('all');
+
+  // Fetch templates
+  const { data: templates, isLoading } = trpc.templates.list.useQuery({
+    search: searchQuery || undefined,
+    category: selectedCategory === 'all' ? undefined : selectedCategory,
+  });
+
+  // Create project from template
+  const createFromTemplate = trpc.projects.createFromTemplate.useMutation({
+    onSuccess: (project) => {
+      router.push(`/editor/${project.id}`);
+    },
+  });
+
+  const handleUseTemplate = (templateId: string) => {
+    createFromTemplate.mutate({ templateId });
+  };
+
+  // Category tabs
+  const categories = [
+    { value: 'all', label: 'All Templates' },
+    { value: 'residential', label: 'Residential' },
+    { value: 'commercial', label: 'Commercial' },
+    { value: 'aerial', label: 'Aerial' },
+    { value: 'neighbourhood', label: 'Neighbourhood' },
+    { value: 'luxury', label: 'Luxury' },
+  ];
+
+  return (
+    <div className="container py-8 max-w-7xl">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
+        <p className="text-muted-foreground mt-1">
+          Start with a pre-built template to save time
+        </p>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search templates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      {/* Category Tabs */}
+      <Tabs
+        value={selectedCategory}
+        onValueChange={setSelectedCategory}
+        className="space-y-6"
+      >
+        <TabsList className="w-full justify-start flex-wrap h-auto gap-2 bg-transparent p-0">
+          {categories.map((category) => (
+            <TabsTrigger
+              key={category.value}
+              value={category.value}
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              {category.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {categories.map((category) => (
+          <TabsContent key={category.value} value={category.value}>
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div
+                    key={i}
+                    className="h-64 bg-muted animate-pulse rounded-lg"
+                  />
+                ))}
+              </div>
+            ) : templates && templates.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {templates.map((template) => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    onUse={() => handleUseTemplate(template.id)}
+                    isLoading={createFromTemplate.isPending}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <p className="text-lg font-medium mb-2">No templates found</p>
+                <p className="text-muted-foreground">
+                  {searchQuery
+                    ? `No templates match "${searchQuery}"`
+                    : 'No templates available in this category'}
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
+
+      {/* Featured Section */}
+      <div className="mt-12">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <Star className="w-5 h-5 text-yellow-500" />
+          Featured Templates
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Our most popular templates chosen by the community
+        </p>
+        
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-80 bg-muted animate-pulse rounded-lg"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {templates?.slice(0, 3).map((template) => (
+              <FeaturedTemplateCard
+                key={template.id}
+                template={template}
+                onUse={() => handleUseTemplate(template.id)}
+                isLoading={createFromTemplate.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
+// Template Card Component
+// ===========================================
+
+interface TemplateCardProps {
+  template: Template;
+  onUse: () => void;
+  isLoading: boolean;
+}
+
+function TemplateCard({ template, onUse, isLoading }: TemplateCardProps) {
+  return (
+    <Card className="group overflow-hidden hover:shadow-md transition-shadow">
+      <div className="aspect-video bg-muted relative">
+        {template.thumbnailUrl ? (
+          <img
+            src={template.thumbnailUrl}
+            alt={template.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+            <span className="text-4xl font-bold text-primary/30">
+              {template.name.charAt(0)}
+            </span>
+          </div>
+        )}
+        {template.isPremium && (
+          <div className="absolute top-2 right-2 bg-yellow-500 text-yellow-950 text-xs font-semibold px-2 py-0.5 rounded">
+            PRO
+          </div>
+        )}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+          <Button
+            variant="secondary"
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={onUse}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              'Use Template'
+            )}
+          </Button>
+        </div>
+      </div>
+      <CardContent className="p-4">
+        <h3 className="font-medium truncate">{template.name}</h3>
+        {template.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+            {template.description}
+          </p>
+        )}
+        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+          <span className="capitalize">{template.category}</span>
+          <span>{template.usageCount} uses</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ===========================================
+// Featured Template Card Component
+// ===========================================
+
+function FeaturedTemplateCard({ template, onUse, isLoading }: TemplateCardProps) {
+  return (
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="aspect-[4/3] bg-muted relative">
+        {template.thumbnailUrl ? (
+          <img
+            src={template.thumbnailUrl}
+            alt={template.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+            <span className="text-6xl font-bold text-primary/30">
+              {template.name.charAt(0)}
+            </span>
+          </div>
+        )}
+        {template.isPremium && (
+          <div className="absolute top-3 right-3 bg-yellow-500 text-yellow-950 text-xs font-semibold px-2 py-1 rounded">
+            PRO
+          </div>
+        )}
+      </div>
+      <CardContent className="p-5">
+        <h3 className="text-lg font-semibold">{template.name}</h3>
+        {template.description && (
+          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+            {template.description}
+          </p>
+        )}
+        <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="capitalize">{template.category}</span>
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {template.usageCount} uses
+            </span>
+          </div>
+          <Button onClick={onUse} disabled={isLoading} size="sm">
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              'Use'
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

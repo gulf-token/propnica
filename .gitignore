@@ -1,0 +1,109 @@
+# ===========================================
+# PropertyClips - Git Ignore Configuration
+# ===========================================
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+playwright-report
+playwright-results.json
+test-results
+
+# Next.js
+.next
+out
+.swc
+
+# Production
+build
+dist
+remotion-build
+
+# Misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Terraform
+infrastructure/terraform/.terraform
+infrastructure/terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Remotion
+remotion-build
+*.mp4
+*.webm
+*.mov
+
+# Logs
+logs
+*.log
+
+# Cache
+.cache
+.turbo
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Package manager lock files (keep only one)
+# Uncomment the ones you don't use
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Sentry
+.sentryclirc
+
+# AWS
+.aws-sam

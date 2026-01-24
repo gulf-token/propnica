@@ -1,0 +1,17 @@
+# ===========================================
+# PropertyClips Terraform Variables
+# ===========================================
+
+# Copy this file to terraform.tfvars and fill in your values
+# Do not commit terraform.tfvars to version control
+
+# AWS Configuration
+aws_region  = "eu-west-1"
+environment = "production"
+
+# Domain Configuration
+domain_name = "propertyclips.app"
+
+# Lambda Configuration
+remotion_lambda_memory  = 2048  # MB
+remotion_lambda_timeout = 900   # seconds (15 minutes)

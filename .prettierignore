@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+.next
+out
+dist
+build
+remotion-build
+
+# Generated files
+*.generated.*
+prisma/client
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Coverage
+coverage
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Cache
+.cache
+.turbo
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+infrastructure/terraform/.terraform
+*.tfstate
+*.tfstate.*
+
+# Logs
+*.log
+npm-debug.log*
