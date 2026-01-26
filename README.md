@@ -69,7 +69,7 @@ A cloud-based SaaS platform for creating cinematic property showcase videos with
    # AWS (for Remotion)
    AWS_ACCESS_KEY_ID=your_aws_access_key
    AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-   AWS_REGION=me-south-1
+   AWS_REGION=eu-central-1
    ```
 
 5. Generate Prisma client and run migrations:

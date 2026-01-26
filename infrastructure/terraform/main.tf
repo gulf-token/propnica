@@ -16,7 +16,7 @@ terraform {
   backend "s3" {
     bucket         = "propnica-terraform-state"
     key            = "infrastructure/terraform.tfstate"
-    region         = "eu-west-1"
+    region         = "eu-central-1"
     encrypt        = true
     dynamodb_table = "propnica-terraform-locks"
   }
@@ -38,6 +38,20 @@ provider "aws" {
   }
 }
 
+# Provider for us-east-1 (required for CloudFront ACM certificates)
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Project     = "Propnica"
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+    }
+  }
+}
+
 # ===========================================
 # Variables
 # ===========================================
@@ -45,7 +59,7 @@ provider "aws" {
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
-  default     = "eu-west-1"
+  default     = "eu-central-1"
 }
 
 variable "environment" {
@@ -58,6 +72,18 @@ variable "domain_name" {
   description = "Domain name for the application"
   type        = string
   default     = "propnica.app"
+}
+
+variable "cdn_domain_name" {
+  description = "Custom domain name for CloudFront CDN (e.g., cdn.propnica.app). Leave empty to use default CloudFront domain."
+  type        = string
+  default     = ""
+}
+
+variable "enable_cdn_ssl" {
+  description = "Whether to enable custom SSL certificate for CloudFront"
+  type        = bool
+  default     = false
 }
 
 variable "remotion_lambda_memory" {
@@ -322,6 +348,27 @@ resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
 }
 
 # ===========================================
+# ACM Certificate for CloudFront (optional)
+# ===========================================
+
+# Certificate must be in us-east-1 for CloudFront
+resource "aws_acm_certificate" "cdn" {
+  count    = var.enable_cdn_ssl && var.cdn_domain_name != "" ? 1 : 0
+  provider = aws.us_east_1
+
+  domain_name       = var.cdn_domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name = "propnica-cdn-cert-${var.environment}"
+  }
+}
+
+# ===========================================
 # CloudFront Distribution for Renders
 # ===========================================
 
@@ -339,6 +386,9 @@ resource "aws_cloudfront_distribution" "renders" {
   comment             = "Propnica Renders CDN - ${var.environment}"
   default_root_object = ""
   price_class         = "PriceClass_100"
+
+  # Custom domain alias (optional)
+  aliases = var.enable_cdn_ssl && var.cdn_domain_name != "" ? [var.cdn_domain_name] : []
 
   origin {
     domain_name              = aws_s3_bucket.renders.bucket_regional_domain_name
@@ -371,8 +421,21 @@ resource "aws_cloudfront_distribution" "renders" {
     }
   }
 
-  viewer_certificate {
-    cloudfront_default_certificate = true
+  # Use custom certificate if enabled, otherwise use default CloudFront certificate
+  dynamic "viewer_certificate" {
+    for_each = var.enable_cdn_ssl && var.cdn_domain_name != "" ? [1] : []
+    content {
+      acm_certificate_arn      = aws_acm_certificate.cdn[0].arn
+      ssl_support_method       = "sni-only"
+      minimum_protocol_version = "TLSv1.2_2021"
+    }
+  }
+
+  dynamic "viewer_certificate" {
+    for_each = var.enable_cdn_ssl && var.cdn_domain_name != "" ? [] : [1]
+    content {
+      cloudfront_default_certificate = true
+    }
   }
 }
 
@@ -402,8 +465,144 @@ resource "aws_s3_bucket_policy" "renders_cloudfront" {
 }
 
 # ===========================================
+# CloudWatch Alarms
+# ===========================================
+
+# SNS Topic for alarm notifications
+resource "aws_sns_topic" "alerts" {
+  name = "propnica-alerts-${var.environment}"
+}
+
+# Lambda Error Alarm
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  alarm_name          = "propnica-lambda-errors-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 5
+  alarm_description   = "Lambda function errors exceeded threshold"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = "remotion-render-${var.environment}"
+  }
+
+  treat_missing_data = "notBreaching"
+}
+
+# Lambda Duration Alarm (approaching timeout)
+resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
+  alarm_name          = "propnica-lambda-duration-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 840000  # 14 minutes (timeout is 15)
+  alarm_description   = "Lambda function duration approaching timeout"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = "remotion-render-${var.environment}"
+  }
+
+  treat_missing_data = "notBreaching"
+}
+
+# SQS Dead Letter Queue Alarm
+resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
+  alarm_name          = "propnica-dlq-messages-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 0
+  alarm_description   = "Messages in dead letter queue indicate failed renders"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    QueueName = aws_sqs_queue.render_jobs_dlq.name
+  }
+
+  treat_missing_data = "notBreaching"
+}
+
+# RDS CPU Utilization Alarm
+resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
+  alarm_name          = "propnica-rds-cpu-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "RDS CPU utilization is high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = "propnica-${var.environment}"
+  }
+
+  treat_missing_data = "notBreaching"
+}
+
+# RDS Free Storage Space Alarm
+resource "aws_cloudwatch_metric_alarm" "rds_storage" {
+  alarm_name          = "propnica-rds-storage-${var.environment}"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 5368709120  # 5 GB in bytes
+  alarm_description   = "RDS free storage space is low"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = "propnica-${var.environment}"
+  }
+
+  treat_missing_data = "notBreaching"
+}
+
+# RDS Database Connections Alarm
+resource "aws_cloudwatch_metric_alarm" "rds_connections" {
+  alarm_name          = "propnica-rds-connections-${var.environment}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 50  # db.t4g.micro has ~85 max connections
+  alarm_description   = "RDS connection count is high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = "propnica-${var.environment}"
+  }
+
+  treat_missing_data = "notBreaching"
+}
+
+# ===========================================
 # Outputs
 # ===========================================
+
+output "sns_alerts_topic_arn" {
+  description = "ARN of the SNS alerts topic"
+  value       = aws_sns_topic.alerts.arn
+}
 
 output "renders_bucket_name" {
   description = "Name of the renders S3 bucket"

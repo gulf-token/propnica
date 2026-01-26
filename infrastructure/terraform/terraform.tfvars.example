@@ -6,12 +6,94 @@
 # Do not commit terraform.tfvars to version control
 
 # AWS Configuration
-aws_region  = "eu-west-1"
+aws_region  = "eu-central-1"
 environment = "production"
 
 # Domain Configuration
 domain_name = "propnica.app"
 
+# ===========================================
+# Database Configuration
+# ===========================================
+
+# Instance class (cost options):
+# - db.t4g.micro  (~$12/month) - ARM-based, most cost-effective
+# - db.t3.micro   (~$15/month) - x86, free tier eligible for 12 months
+# - db.t4g.small  (~$25/month) - for higher traffic
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20  # GB
+
+# Database name and username
+db_name     = "propnica"
+db_username = "propnica_admin"
+
+# Database Security
+# IMPORTANT: For production, add your office/VPN IP addresses here
+# For serverless platforms (Vercel/Amplify), you may need their IP ranges
+# See: https://vercel.com/docs/security/deployment-protection
+db_allowed_cidr_blocks = [
+  # "203.0.113.0/24",    # Example: Your office IP range
+  # "198.51.100.50/32",  # Example: Developer home IP
+  "0.0.0.0/0"            # WARNING: Open to all - restrict in production!
+]
+db_publicly_accessible = true  # Required for serverless platforms
+
+# ===========================================
+# Amplify Configuration
+# ===========================================
+
+# GitHub repository (HTTPS URL)
+github_repository = "https://github.com/gulf-token/propnica"
+
+# Branch to deploy
+github_branch = "main"
+
+# GitHub personal access token (required for private repos)
+# Create at: https://github.com/settings/tokens
+# Required scopes: repo, admin:repo_hook
+github_access_token = ""
+
+# ===========================================
 # Lambda Configuration
+# ===========================================
+
 remotion_lambda_memory  = 2048  # MB
 remotion_lambda_timeout = 900   # seconds (15 minutes)
+
+# ===========================================
+# GitHub OIDC Configuration
+# ===========================================
+
+# GitHub organization/user and repository for OIDC authentication
+# This allows GitHub Actions to assume AWS roles without access keys
+github_org  = "gulf-token"
+github_repo = "propnica"
+
+# ===========================================
+# CDN Configuration (optional)
+# ===========================================
+
+# Custom domain for CloudFront CDN (e.g., cdn.propnica.app)
+# Leave empty to use the default CloudFront domain
+cdn_domain_name = ""
+enable_cdn_ssl  = false  # Set to true and configure cdn_domain_name for custom SSL
+
+# ===========================================
+# Estimated Monthly Costs (eu-central-1 / Frankfurt)
+# ===========================================
+#
+# RDS db.t4g.micro:           ~$12
+# RDS Storage (20GB):         ~$2
+# Amplify Build (100 mins):   ~$1
+# Amplify Hosting:            ~$5-15 (depends on traffic)
+# S3 Storage:                 ~$2-5
+# CloudFront:                 ~$1-5
+# Lambda (Remotion):          ~$5-20 (depends on renders)
+# -----------------------------------
+# Total:                      ~$30-60/month
+#
+# Free tier eligible items (first 12 months):
+# - RDS db.t3.micro: 750 hours/month
+# - S3: 5GB storage
+# - Lambda: 1M requests
+# - CloudFront: 1TB data transfer

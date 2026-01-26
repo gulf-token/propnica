@@ -157,7 +157,7 @@ NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="your-mapbox-token"
 # AWS (for Remotion Lambda rendering)
 AWS_ACCESS_KEY_ID="your-aws-key"
 AWS_SECRET_ACCESS_KEY="your-aws-secret"
-AWS_REGION="eu-west-1"
+AWS_REGION="eu-central-1"
 
 # Remotion
 REMOTION_SERVE_URL="http://localhost:3001"

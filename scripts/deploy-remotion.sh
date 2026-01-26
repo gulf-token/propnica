@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-REGION="${AWS_REGION:-eu-west-1}"
+REGION="${AWS_REGION:-eu-central-1}"
 ENVIRONMENT="${ENVIRONMENT:-production}"
 FUNCTION_NAME="remotion-render-${ENVIRONMENT}"
 SITE_NAME="propnica-${ENVIRONMENT}"

@@ -6,9 +6,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Note: directUrl is only needed for Supabase connection pooling
+  // For local development with Docker, only DATABASE_URL is required
 }
 
 // ===========================================

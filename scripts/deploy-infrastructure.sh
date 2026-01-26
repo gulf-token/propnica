@@ -8,7 +8,7 @@ set -e
 
 # Configuration
 ENVIRONMENT="${ENVIRONMENT:-production}"
-REGION="${AWS_REGION:-eu-west-1}"
+REGION="${AWS_REGION:-eu-central-1}"
 
 # Colours for output
 RED='\033[0;31m'

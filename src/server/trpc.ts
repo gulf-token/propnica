@@ -6,10 +6,50 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 // ===========================================
+// Development Auth Bypass
+// ===========================================
+// When DEV_AUTH_BYPASS=true, we skip Supabase auth and use a mock user
+// This allows local development without Supabase
+
+const DEV_AUTH_BYPASS = process.env.DEV_AUTH_BYPASS === 'true';
+const DEV_USER_ID = process.env.DEV_USER_ID ?? 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+const DEV_USER_EMAIL = process.env.DEV_USER_EMAIL ?? 'dev@propnica.local';
+
+// Mock session for development
+const createDevSession = () => ({
+  user: {
+    id: DEV_USER_ID,
+    email: DEV_USER_EMAIL,
+    app_metadata: {},
+    user_metadata: { name: 'Dev User' },
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+  },
+  access_token: 'dev-access-token',
+  refresh_token: 'dev-refresh-token',
+  expires_in: 3600,
+  expires_at: Math.floor(Date.now() / 1000) + 3600,
+  token_type: 'bearer',
+});
+
+// ===========================================
 // Context Creation
 // ===========================================
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  // Development auth bypass - skip Supabase entirely
+  if (DEV_AUTH_BYPASS) {
+    console.log('[tRPC Context] DEV_AUTH_BYPASS enabled - using mock user');
+    const devSession = createDevSession();
+    return {
+      session: devSession,
+      userId: DEV_USER_ID,
+      prisma,
+      supabase: null, // No Supabase client in dev bypass mode
+      headers: opts.headers,
+    };
+  }
+
   const cookieStore = cookies();
 
   // Debug: Log auth cookies

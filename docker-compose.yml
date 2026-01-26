@@ -1,0 +1,59 @@
+# ===========================================
+# Propnica Local Development Stack
+# ===========================================
+# Start: docker compose up -d
+# Stop:  docker compose down
+# Logs:  docker compose logs -f db
+# Reset: docker compose down -v && docker compose up -d
+#
+# With pgAdmin: docker compose --profile tools up -d
+
+services:
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  db:
+    image: postgres:15-alpine
+    container_name: propnica-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: propnica
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d propnica"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # pgAdmin (Optional - Database UI)
+  # ===========================================
+  # Access at: http://localhost:5050
+  # Email: admin@propnica.local / Password: admin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: propnica-pgadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@propnica.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  pgadmin_data:

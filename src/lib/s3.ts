@@ -12,7 +12,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 // ===========================================
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'eu-west-1',
+  region: process.env.AWS_REGION || 'eu-central-1',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
@@ -173,7 +173,7 @@ export async function getFileSize(
 // ===========================================
 
 export function getPublicUrl(bucket: keyof typeof BUCKETS, key: string): string {
-  return `https://${BUCKETS[bucket]}.s3.${process.env.AWS_REGION || 'eu-west-1'}.amazonaws.com/${key}`;
+  return `https://${BUCKETS[bucket]}.s3.${process.env.AWS_REGION || 'eu-central-1'}.amazonaws.com/${key}`;
 }
 
 export function parseS3Url(url: string): { bucket: string; key: string } | null {

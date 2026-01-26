@@ -37,6 +37,7 @@
 | Auth | Supabase Auth | 2.x | Authentication service |
 | Storage | AWS S3 | SDK 3.x | File storage |
 | Video | Remotion | 4.0.114 | Programmatic video creation |
+| AI | Anthropic SDK | 0.71.x | AI-powered script parsing |
 | Database | PostgreSQL | 15+ | Primary database |
 
 ### System Requirements
@@ -60,12 +61,16 @@ propnica/
 │   │   │   ├── projects/       # Project management
 │   │   │   ├── templates/      # Template management
 │   │   │   ├── renders/        # Render history
-│   │   │   └── settings/       # User settings
+│   │   │   ├── settings/       # User settings
+│   │   │   └── account/        # Account management
 │   │   ├── editor/[id]/        # Project editor
 │   │   ├── api/                # API routes
 │   │   │   ├── trpc/[trpc]/    # tRPC handler
+│   │   │   ├── ai/parse-script/ # AI script parsing endpoint
 │   │   │   └── webhooks/       # Webhook handlers (Stripe)
 │   │   ├── auth/callback/      # OAuth callback
+│   │   ├── privacy/            # Privacy policy page
+│   │   ├── terms/              # Terms of service page
 │   │   ├── layout.tsx          # Root layout
 │   │   └── page.tsx            # Landing page
 │   │
@@ -86,6 +91,10 @@ propnica/
 │   │   ├── preview/            # Preview/render components
 │   │   │   ├── preview-modal.tsx
 │   │   │   └── render-modal.tsx
+│   │   ├── ai/                 # AI-powered components
+│   │   │   ├── ai-project-generator.tsx  # AI video generation
+│   │   │   ├── location-autocomplete.tsx # Location search
+│   │   │   └── timeline-table.tsx        # Timeline table view
 │   │   ├── auth/               # Auth components
 │   │   └── layout/             # Layout components (header, footer)
 │   │
@@ -96,7 +105,12 @@ propnica/
 │   │   ├── remotion.ts         # Remotion Lambda integration
 │   │   ├── geo-utils.ts        # Geographic utilities
 │   │   ├── color-preferences.ts
-│   │   └── utils.ts            # General utilities (cn, etc.)
+│   │   ├── utils.ts            # General utilities (cn, etc.)
+│   │   └── ai/                 # AI utilities
+│   │       ├── index.ts        # AI module exports
+│   │       ├── parse-script.ts # Script parsing logic
+│   │       ├── schemas.ts      # Zod validation schemas
+│   │       └── time-parser.ts  # Time parsing utilities
 │   │
 │   ├── stores/                 # Zustand state stores
 │   │   ├── editor-store.ts     # Editor UI state
@@ -124,6 +138,7 @@ propnica/
 │   │   ├── MapRenderer.tsx
 │   │   ├── MarkerRenderer.tsx
 │   │   ├── RouteRenderer.tsx
+│   │   ├── ZoneRenderer.tsx
 │   │   ├── LogoOverlay.tsx
 │   │   ├── TitleOverlay.tsx
 │   │   ├── WatermarkOverlay.tsx
@@ -489,12 +504,12 @@ NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="pk.xxx"
 # AWS S3
 AWS_ACCESS_KEY_ID="AKIAxxx"
 AWS_SECRET_ACCESS_KEY="xxx"
-AWS_REGION="eu-west-1"
+AWS_REGION="eu-central-1"
 
 # Remotion Lambda
-REMOTION_AWS_REGION="eu-west-1"
+REMOTION_AWS_REGION="eu-central-1"
 REMOTION_LAMBDA_FUNCTION_NAME="remotion-render-prod"
-REMOTION_SERVE_URL="https://xxx.s3.eu-west-1.amazonaws.com/sites/xxx"
+REMOTION_SERVE_URL="https://xxx.s3.eu-central-1.amazonaws.com/sites/xxx"
 REMOTION_S3_BUCKET="propnica-renders-prod"
 
 # Application
@@ -503,6 +518,9 @@ NEXT_PUBLIC_APP_URL="https://app.propnica.com"
 
 ### Optional Variables
 ```env
+# AI Features
+ANTHROPIC_API_KEY="sk-ant-xxx"
+
 # Stripe (payments)
 STRIPE_SECRET_KEY="sk_xxx"
 STRIPE_WEBHOOK_SECRET="whsec_xxx"
@@ -567,7 +585,7 @@ npm run dev
 - Remotion Lambda function for video rendering
 - Memory: 2048 MB
 - Timeout: 900 seconds (15 minutes)
-- Region: eu-west-1
+- Region: eu-central-1
 
 ### CloudFront
 - CDN distribution for rendered videos
@@ -659,12 +677,15 @@ Client → Supabase Auth → Callback Handler → Session Cookie
 ## Known Issues & Technical Debt
 
 ### Critical Issues (from Code Review)
-1. **Missing AWS SDK** - Add `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
-2. **Remotion type mismatches** - Type system uses `TextMarker`, components use `MapMarker`
-3. **Route property access** - Components use flat props, types use nested `style.*`
-4. **Missing TitleStyle type** - Not defined in type system
-5. **tRPC procedure names** - `renders.start` should be `renders.create`
-6. **Timeline function names** - `zoomTimelineIn` should be `zoomIn`
+All critical issues from the January 2026 code review have been resolved:
+- ✅ AWS SDK dependencies added
+- ✅ Remotion type mismatches fixed (using `TextMarker`, `Zone`, `Route`)
+- ✅ Route property access corrected (using nested `style.*`)
+- ✅ TitleStyle type defined
+- ✅ tRPC procedure names aligned (`renders.create`, `renders.get`)
+- ✅ Timeline function names corrected (`zoomIn`, `zoomOut`)
+- ✅ Toolbar component accepts props correctly
+- ✅ Settings modal uses `config` key correctly
 
 ### Technical Debt
 - No React error boundaries
@@ -784,7 +805,7 @@ undo: () => set((state) => {
 - **Documentation**: `/docs/` folder
 - **Issue Tracker**: GitHub Issues
 - **Supabase Dashboard**: https://app.supabase.com
-- **AWS Console**: eu-west-1 region
+- **AWS Console**: eu-central-1 region
 - **Mapbox Dashboard**: https://account.mapbox.com
 
 ---

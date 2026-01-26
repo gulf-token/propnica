@@ -11,7 +11,7 @@ import { ProjectConfig, RESOLUTION_PRESETS, ResolutionPreset } from '@/types';
 // ===========================================
 
 const REMOTION_CONFIG = {
-  region: (process.env.REMOTION_AWS_REGION || 'eu-west-1') as AwsRegion,
+  region: (process.env.REMOTION_AWS_REGION || 'eu-central-1') as AwsRegion,
   functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME || 'remotion-render-propnica',
   serveUrl: process.env.REMOTION_SERVE_URL || '',
   outBucket: process.env.REMOTION_S3_BUCKET || 'propnica-renders',

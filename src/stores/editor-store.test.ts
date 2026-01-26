@@ -178,7 +178,7 @@ describe('Editor Store', () => {
   describe('Selection Operations', () => {
     it('should select element', () => {
       const store = useEditorStore.getState();
-      const element = { id: 'element-123', type: 'marker' as const };
+      const element = { id: 'element-123', type: 'textMarker' as const };
 
       act(() => {
         store.selectElement(element);
@@ -191,7 +191,7 @@ describe('Editor Store', () => {
       const store = useEditorStore.getState();
 
       act(() => {
-        store.selectElement({ id: 'element-123', type: 'marker' as const });
+        store.selectElement({ id: 'element-123', type: 'textMarker' as const });
         store.clearSelection();
       });
 
