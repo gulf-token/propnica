@@ -220,7 +220,7 @@ export const rendersRouter = createTRPCRouter({
       };
     }),
 
-  // Cancel a queued render
+  // Cancel a queued or processing render
   cancel: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -228,14 +228,14 @@ export const rendersRouter = createTRPCRouter({
         where: {
           id: input.id,
           userId: ctx.userId,
-          status: 'QUEUED',
+          status: { in: ['QUEUED', 'PROCESSING'] },
         },
       });
 
       if (!render) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Queued render not found',
+          message: 'Active render not found',
         });
       }
 

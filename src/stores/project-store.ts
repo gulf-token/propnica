@@ -15,8 +15,16 @@ import {
   DEFAULT_TEXT_MARKER_STYLE,
   DEFAULT_ELEMENT_TIMING,
   DEFAULT_CAMERA_STATE,
+  calculateDurationFromKeyframes,
 } from '@/types';
 import { generateId } from '@/lib/utils';
+import {
+  shiftCoordinatesToCenter,
+  shiftLineToCenter,
+  getPolygonCentroid,
+  getLineCentroid,
+} from '@/lib/geo-utils';
+import { getColorPreferences } from '@/lib/color-preferences';
 
 // ===========================================
 // Project Store State Interface
@@ -78,6 +86,11 @@ interface ProjectState {
   addTextMarker: (position: [number, number], text: string) => string;
   updateTextMarker: (id: string, updates: Partial<TextMarker>) => void;
   deleteTextMarker: (id: string) => void;
+
+  // Actions - Library Import
+  importLibraryZone: (zone: Zone, mapCenter: [number, number]) => string;
+  importLibraryRoute: (route: Route, mapCenter: [number, number]) => string;
+  importLibraryTextMarker: (marker: TextMarker, mapCenter: [number, number]) => string;
   
   // Actions - History
   undo: () => void;
@@ -210,8 +223,8 @@ export const useProjectStore = create<ProjectState>()(
           const id = generateId();
           const keyframeCount = get().config.keyframes.length;
           const lastKeyframe = get().config.keyframes[keyframeCount - 1];
-          const time = lastKeyframe 
-            ? lastKeyframe.time + lastKeyframe.duration 
+          const time = lastKeyframe
+            ? lastKeyframe.time + lastKeyframe.duration
             : 0;
 
           set((state) => {
@@ -224,6 +237,8 @@ export const useProjectStore = create<ProjectState>()(
               camera,
               easing: 'easeInOutCubic' as EasingType,
             });
+            // Auto-sync duration from keyframes
+            state.config.settings.duration = calculateDurationFromKeyframes(state.config.keyframes);
             state.isDirty = true;
           });
           return id;
@@ -239,6 +254,8 @@ export const useProjectStore = create<ProjectState>()(
                 ...updates,
               };
             }
+            // Auto-sync duration from keyframes
+            state.config.settings.duration = calculateDurationFromKeyframes(state.config.keyframes);
             state.isDirty = true;
           });
         },
@@ -249,6 +266,8 @@ export const useProjectStore = create<ProjectState>()(
             state.config.keyframes = state.config.keyframes.filter(
               (k) => k.id !== id
             );
+            // Auto-sync duration from keyframes
+            state.config.settings.duration = calculateDurationFromKeyframes(state.config.keyframes);
             state.isDirty = true;
           });
         },
@@ -264,6 +283,8 @@ export const useProjectStore = create<ProjectState>()(
               keyframe.time = currentTime;
               currentTime += keyframe.duration;
             });
+            // Auto-sync duration from keyframes
+            state.config.settings.duration = calculateDurationFromKeyframes(state.config.keyframes);
             state.isDirty = true;
           });
         },
@@ -287,6 +308,8 @@ export const useProjectStore = create<ProjectState>()(
                 keyframe.time = currentTime;
                 currentTime += keyframe.duration;
               });
+              // Auto-sync duration from keyframes
+              state.config.settings.duration = calculateDurationFromKeyframes(state.config.keyframes);
             }
             state.isDirty = true;
           });
@@ -298,6 +321,7 @@ export const useProjectStore = create<ProjectState>()(
           const id = generateId();
           const zoneCount = get().config.zones.length;
           const duration = get().config.settings.duration;
+          const colorPrefs = getColorPreferences();
 
           set((state) => {
             pushHistory(state);
@@ -305,7 +329,13 @@ export const useProjectStore = create<ProjectState>()(
               id,
               name: name || `Zone ${zoneCount + 1}`,
               coordinates,
-              style: { ...DEFAULT_ZONE_STYLE },
+              style: {
+                ...DEFAULT_ZONE_STYLE,
+                fillColour: colorPrefs.zone.fillColour,
+                fillOpacity: colorPrefs.zone.fillOpacity,
+                strokeColour: colorPrefs.zone.strokeColour,
+                strokeWidth: colorPrefs.zone.strokeWidth,
+              },
               label: {
                 text: name || `Zone ${zoneCount + 1}`,
                 fontSize: 14,
@@ -349,6 +379,7 @@ export const useProjectStore = create<ProjectState>()(
           const id = generateId();
           const routeCount = get().config.routes.length;
           const duration = get().config.settings.duration;
+          const colorPrefs = getColorPreferences();
 
           set((state) => {
             pushHistory(state);
@@ -356,7 +387,12 @@ export const useProjectStore = create<ProjectState>()(
               id,
               name: name || `Route ${routeCount + 1}`,
               coordinates,
-              style: { ...DEFAULT_ROUTE_STYLE },
+              style: {
+                ...DEFAULT_ROUTE_STYLE,
+                colour: colorPrefs.route.colour,
+                width: colorPrefs.route.width,
+                opacity: colorPrefs.route.opacity,
+              },
               label: {
                 text: name || `Route ${routeCount + 1}`,
                 visible: true,
@@ -401,6 +437,7 @@ export const useProjectStore = create<ProjectState>()(
         addTextMarker: (position, text) => {
           const id = generateId();
           const duration = get().config.settings.duration;
+          const colorPrefs = getColorPreferences();
 
           set((state) => {
             pushHistory(state);
@@ -408,7 +445,11 @@ export const useProjectStore = create<ProjectState>()(
               id,
               position,
               text,
-              style: { ...DEFAULT_TEXT_MARKER_STYLE },
+              style: {
+                ...DEFAULT_TEXT_MARKER_STYLE,
+                backgroundColour: colorPrefs.textMarker.backgroundColour,
+                fontColour: colorPrefs.textMarker.fontColour,
+              },
               timing: {
                 ...DEFAULT_ELEMENT_TIMING,
                 endTime: duration,
@@ -441,6 +482,82 @@ export const useProjectStore = create<ProjectState>()(
             );
             state.isDirty = true;
           });
+        },
+
+        // Library Import Actions
+        importLibraryZone: (zone, mapCenter) => {
+          const id = generateId();
+          const duration = get().config.settings.duration;
+          const zoneCount = get().config.zones.length;
+
+          // Shift coordinates to center on map
+          const shiftedCoordinates = shiftCoordinatesToCenter(
+            zone.coordinates,
+            mapCenter
+          );
+
+          set((state) => {
+            pushHistory(state);
+            state.config.zones.push({
+              ...zone,
+              id,
+              name: `${zone.name} (imported)`,
+              coordinates: shiftedCoordinates,
+              timing: {
+                ...DEFAULT_ELEMENT_TIMING,
+                endTime: duration,
+              },
+            });
+            state.isDirty = true;
+          });
+          return id;
+        },
+
+        importLibraryRoute: (route, mapCenter) => {
+          const id = generateId();
+          const duration = get().config.settings.duration;
+
+          // Shift coordinates to center on map
+          const shiftedCoordinates = shiftLineToCenter(
+            route.coordinates,
+            mapCenter
+          );
+
+          set((state) => {
+            pushHistory(state);
+            state.config.routes.push({
+              ...route,
+              id,
+              name: `${route.name} (imported)`,
+              coordinates: shiftedCoordinates,
+              timing: {
+                ...DEFAULT_ELEMENT_TIMING,
+                endTime: duration,
+              },
+            });
+            state.isDirty = true;
+          });
+          return id;
+        },
+
+        importLibraryTextMarker: (marker, mapCenter) => {
+          const id = generateId();
+          const duration = get().config.settings.duration;
+
+          set((state) => {
+            pushHistory(state);
+            state.config.textMarkers.push({
+              ...marker,
+              id,
+              position: mapCenter, // Place at map center
+              timing: {
+                ...DEFAULT_ELEMENT_TIMING,
+                endTime: duration,
+              },
+            });
+            state.isDirty = true;
+          });
+          return id;
         },
 
         // History Actions
