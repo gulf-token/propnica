@@ -328,26 +328,6 @@ resource "aws_sqs_queue" "render_jobs_dlq" {
 }
 
 # ===========================================
-# CloudWatch Alarms
-# ===========================================
-
-resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
-  alarm_name          = "propnica-render-dlq-messages-${var.environment}"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "ApproximateNumberOfMessagesVisible"
-  namespace           = "AWS/SQS"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 0
-  alarm_description   = "Alert when messages appear in the render jobs DLQ"
-
-  dimensions = {
-    QueueName = aws_sqs_queue.render_jobs_dlq.name
-  }
-}
-
-# ===========================================
 # ACM Certificate for CloudFront (optional)
 # ===========================================
 
