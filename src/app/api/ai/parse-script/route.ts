@@ -8,10 +8,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { streamObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
-import { ParsedScriptSchema } from '@/lib/ai/schemas';
+import { ParsedScriptSchema, type ParsedScript } from '@/lib/ai/schemas';
 
 // Request validation schema
 const RequestSchema = z.object({
@@ -30,7 +29,6 @@ const RequestSchema = z.object({
           'outdoors',
         ])
         .default('satellite'),
-      streaming: z.boolean().default(false),
     })
     .optional(),
 });
@@ -38,7 +36,7 @@ const RequestSchema = z.object({
 // System prompt for optimal parsing
 const SYSTEM_PROMPT = `You are a video script parser for a property showcase video platform called propNICA.
 
-Your task is to extract structured timeline data from natural language video descriptions.
+Your task is to extract structured timeline data from natural language video descriptions and return it as valid JSON.
 
 PARSING RULES:
 
@@ -98,8 +96,36 @@ PARSING RULES:
    - "Bay Square, Business Bay, Dubai" includes full context
    - "Burj Khalifa" is a known landmark
 
-Always output complete timeline with all activities, sorted by start time.
-Calculate total duration from the latest end time in the script.`;
+OUTPUT FORMAT:
+Return ONLY valid JSON matching this structure (no markdown, no explanation):
+{
+  "title": "optional video title",
+  "description": "optional description",
+  "settings": {
+    "totalDuration": number (seconds),
+    "aspectRatio": "16:9" | "9:16" | "1:1" | "4:5" | "21:9",
+    "mapStyle": "satellite" | "satellite-streets" | "streets" | "light" | "dark" | "outdoors",
+    "primaryLocation": "main location"
+  },
+  "timeline": [
+    {
+      "startTime": number,
+      "duration": number,
+      "activity": {
+        "type": "camera" | "zone" | "route" | "text" | "marker",
+        // type-specific fields
+      }
+    }
+  ],
+  "locations": [{"name": "location name", "context": "additional context"}]
+}
+
+Activity types:
+- camera: {type: "camera", action: "show"|"zoom_in"|"zoom_out"|"pan"|"orbit"|"tilt"|"fly_to", location: string, zoom?: number, bearing?: number, pitch?: number}
+- zone: {type: "zone", action: "draw"|"highlight"|"show", location: string, name?: string, colour?: string, opacity?: number}
+- route: {type: "route", action: "draw"|"show"|"animate", from: string, to: string, colour?: string, animated?: boolean, animationDuration?: number}
+- text: {type: "text", action: "show"|"appear"|"display", text: string, location?: string}
+- marker: {type: "marker", action: "show"|"place"|"add", location: string, label?: string}`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -121,7 +147,8 @@ export async function POST(request: NextRequest) {
     const { script, options } = validationResult.data;
 
     // Check for API key
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
         {
           success: false,
@@ -131,8 +158,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build the prompt
-    const prompt = `Parse this video script into a structured timeline:
+    // Create Anthropic client
+    const client = new Anthropic({
+      apiKey,
+    });
+
+    // Build the user prompt
+    const userPrompt = `Parse this video script into a structured timeline:
 
 ${script}
 
@@ -141,79 +173,119 @@ Default settings if not specified:
 - Aspect ratio: ${options?.aspectRatio ?? '16:9'}
 - Map style: ${options?.mapStyle ?? 'satellite'}
 
-Extract all camera movements, zones, routes, text overlays, and markers with their exact timing.`;
+Extract all camera movements, zones, routes, text overlays, and markers with their exact timing.
+Return ONLY the JSON object, no other text.`;
 
-    // Use streaming for better UX
-    if (options?.streaming) {
-      const result = await streamObject({
-        model: anthropic('claude-sonnet-4-5-20241022'),
-        schema: ParsedScriptSchema,
-        system: SYSTEM_PROMPT,
-        prompt,
-      });
+    // Call Claude API (using Haiku - upgrade to claude-3-5-sonnet-20241022 when available)
+    const message = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: userPrompt,
+        },
+      ],
+    });
 
-      return result.toTextStreamResponse();
+    // Extract text content
+    const textContent = message.content.find((block) => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('No text response from AI');
     }
 
-    // Non-streaming: collect full response
-    const { object, finishReason, usage } = await import('ai').then(({ generateObject }) =>
-      generateObject({
-        model: anthropic('claude-sonnet-4-5-20241022'),
-        schema: ParsedScriptSchema,
-        system: SYSTEM_PROMPT,
-        prompt,
-      })
-    );
+    // Parse the JSON response
+    let jsonStr = textContent.text.trim();
+
+    // Remove markdown code blocks if present
+    if (jsonStr.startsWith('```json')) {
+      jsonStr = jsonStr.slice(7);
+    } else if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.slice(3);
+    }
+    if (jsonStr.endsWith('```')) {
+      jsonStr = jsonStr.slice(0, -3);
+    }
+    jsonStr = jsonStr.trim();
+
+    // Parse and validate with Zod
+    const parsed = JSON.parse(jsonStr);
+
+    // Log raw response in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AI Parse Script] Raw AI response:', JSON.stringify(parsed, null, 2));
+    }
+
+    const validated = ParsedScriptSchema.parse(parsed);
 
     return NextResponse.json({
       success: true,
-      data: object,
+      data: validated,
       metadata: {
-        finishReason,
-        usage,
+        model: message.model,
+        usage: message.usage,
       },
     });
   } catch (error) {
     console.error('[AI Parse Script] Error:', error);
 
-    // Handle specific error types
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'AI returned invalid JSON. Please try again.',
+        },
+        { status: 500 }
+      );
+    }
+
+    // Handle Zod validation errors
     if (error instanceof z.ZodError) {
+      console.error('[AI Parse Script] Zod validation errors:', JSON.stringify(error.errors, null, 2));
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid script format',
-          details: error.errors,
+          error: 'AI response did not match expected format',
+          details: process.env.NODE_ENV === 'development' ? error.errors : undefined,
         },
-        { status: 400 }
+        { status: 500 }
       );
     }
 
-    // Rate limit errors from Anthropic
-    if (error instanceof Error && error.message.includes('rate limit')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'AI service is busy. Please try again in a moment.',
-        },
-        { status: 429 }
-      );
+    // Handle Anthropic API errors
+    if (error instanceof Anthropic.APIError) {
+      if (error.status === 401) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Invalid API key. Please check your ANTHROPIC_API_KEY.',
+          },
+          { status: 503 }
+        );
+      }
+      if (error.status === 429) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'AI service is busy. Please try again in a moment.',
+          },
+          { status: 429 }
+        );
+      }
     }
 
-    // API key errors
-    if (error instanceof Error && error.message.includes('API key')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'AI service configuration error.',
-        },
-        { status: 503 }
-      );
-    }
+    // Generic error
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[AI Parse Script] Full error:', errorMessage);
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to parse script. Please try again.',
+        error: process.env.NODE_ENV === 'development'
+          ? `Failed to parse script: ${errorMessage}`
+          : 'Failed to parse script. Please try again.',
       },
       { status: 500 }
     );
