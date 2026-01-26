@@ -36,17 +36,19 @@ resource "aws_amplify_app" "main" {
   # GitHub access token (required for private repos)
   access_token = var.github_access_token != "" ? var.github_access_token : null
 
-  # Build settings for Next.js
+  # Build settings for Next.js with pnpm
   build_spec = <<-EOT
     version: 1
     frontend:
       phases:
         preBuild:
           commands:
-            - npm ci
+            - corepack enable
+            - corepack prepare pnpm@latest --activate
+            - pnpm install
         build:
           commands:
-            - npm run build
+            - pnpm run build
       artifacts:
         baseDirectory: .next
         files:
@@ -62,10 +64,9 @@ resource "aws_amplify_app" "main" {
 
   # Environment variables
   environment_variables = {
-    NODE_ENV                     = var.environment == "production" ? "production" : "development"
-    NEXT_PUBLIC_APP_URL          = var.environment == "production" ? "https://${var.domain_name}" : "https://${var.environment}.${var.domain_name}"
-    AMPLIFY_MONOREPO_APP_ROOT    = "."
-    _CUSTOM_IMAGE                = "amplify:al2023"
+    NODE_ENV            = var.environment == "production" ? "production" : "development"
+    NEXT_PUBLIC_APP_URL = var.environment == "production" ? "https://${var.domain_name}" : "https://${var.environment}.${var.domain_name}"
+    _CUSTOM_IMAGE       = "amplify:al2023"
   }
 
   # Custom rules for Next.js routing
