@@ -5,11 +5,13 @@ import { createClient } from '@supabase/supabase-js';
 // Client-Side Supabase Client
 // ===========================================
 
+// Use placeholder values during build/SSR if env vars are not set
+// This allows the build to complete - actual functionality requires real credentials
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+
 export const createBrowserClient = () => {
-  return createSupabaseBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  return createSupabaseBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 };
 
 // ===========================================
