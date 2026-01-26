@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================================
-# PropertyClips - Development Setup Script
+# Propnica - Development Setup Script
 # ===========================================
 
 set -e
@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Colour
 
 echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}PropertyClips Development Setup${NC}"
+echo -e "${GREEN}Propnica Development Setup${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 

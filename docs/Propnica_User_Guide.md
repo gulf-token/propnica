@@ -1,4 +1,4 @@
-# PropertyClips User Guide
+# Propnica User Guide
 
 ## Creating Cinematic Property Showcase Videos
 
@@ -30,7 +30,7 @@
 
 ## 1. Introduction
 
-PropertyClips is a cloud-based SaaS platform designed for UAE real estate professionals to create stunning, cinematic property showcase videos featuring smooth map-based animations. Whether you are marketing a luxury villa on Palm Jumeirah or a commercial development in Dubai South, PropertyClips helps you create professional videos that highlight location, amenities, and surrounding areas.
+Propnica is a cloud-based SaaS platform designed for UAE real estate professionals to create stunning, cinematic property showcase videos featuring smooth map-based animations. Whether you are marketing a luxury villa on Palm Jumeirah or a commercial development in Dubai South, Propnica helps you create professional videos that highlight location, amenities, and surrounding areas.
 
 ### Key Features
 
@@ -47,11 +47,11 @@ PropertyClips is a cloud-based SaaS platform designed for UAE real estate profes
 
 ### 2.1 Creating Your Account
 
-Navigate to the PropertyClips website and click "Get Started" to create your account.
+Navigate to the Propnica website and click "Get Started" to create your account.
 
 ```
 +------------------------------------------------------------------+
-|  [Logo] PropertyClips                    [Login]  [Get Started]  |
+|  [Logo] Propnica                    [Login]  [Get Started]  |
 +------------------------------------------------------------------+
 |                                                                  |
 |           Create Cinematic Property Videos                       |
@@ -74,7 +74,7 @@ Navigate to the PropertyClips website and click "Get Started" to create your acc
 
 ```
 +------------------------------------------------------------------+
-|  [Logo] PropertyClips                                            |
+|  [Logo] Propnica                                            |
 +------------------------------------------------------------------+
 |                                                                  |
 |              +--------------------------------+                   |
@@ -116,7 +116,7 @@ Navigate to the PropertyClips website and click "Get Started" to create your acc
 
 ```
 +------------------------------------------------------------------+
-|  [Logo] PropertyClips                                            |
+|  [Logo] Propnica                                            |
 +------------------------------------------------------------------+
 |                                                                  |
 |              +--------------------------------+                   |
@@ -156,7 +156,7 @@ After logging in, you will see the main dashboard. This is your central hub for 
 
 ```
 +------------------------------------------------------------------+
-|  [Logo] PropertyClips    [Projects] [Renders] [Templates] [User] |
+|  [Logo] Propnica    [Projects] [Renders] [Templates] [User] |
 +------------------------------------------------------------------+
 |                                                                  |
 |  Welcome back, Ahmed                                             |
@@ -371,7 +371,7 @@ Use the search bar to quickly navigate to any location:
 
 ### 6.3 Map Styles
 
-PropertyClips offers several map styles to suit your video aesthetic:
+Propnica offers several map styles to suit your video aesthetic:
 
 ```
 +------------------------------------------------------------------+
@@ -1291,7 +1291,7 @@ When you are satisfied with your preview, render the final high-quality video.
 
 ```
 +------------------------------------------------------------------+
-|  [Logo] PropertyClips    [Projects] [Renders] [Templates] [User] |
+|  [Logo] Propnica    [Projects] [Renders] [Templates] [User] |
 +------------------------------------------------------------------+
 |                                                                  |
 |  My Projects                           [+ New Project] [Search]  |
@@ -1361,7 +1361,7 @@ When you are satisfied with your preview, render the final high-quality video.
 
 ## 16. Keyboard Shortcuts
 
-PropertyClips supports keyboard shortcuts for efficient editing:
+Propnica supports keyboard shortcuts for efficient editing:
 
 ### Navigation
 
@@ -1483,8 +1483,8 @@ Solutions:
 
 If you encounter issues not covered in this guide:
 
-1. Visit our Help Centre at help.propertyclips.com
-2. Email support at support@propertyclips.com
+1. Visit our Help Centre at help.propnica.com
+2. Email support at support@propnica.com
 3. Use the in-app chat support (available during business hours)
 4. Join our community forum for tips and discussions
 
@@ -1528,8 +1528,8 @@ If you encounter issues not covered in this guide:
 
 ---
 
-**PropertyClips User Guide v1.0**
+**Propnica User Guide v1.0**
 
-Copyright 2026 PropertyClips. All rights reserved.
+Copyright 2026 Propnica. All rights reserved.
 
-For the latest version of this guide, visit: docs.propertyclips.com
+For the latest version of this guide, visit: docs.propnica.com

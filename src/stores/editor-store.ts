@@ -38,6 +38,9 @@ interface EditorState {
   exportModalOpen: boolean;
   templateModalOpen: boolean;
   keyboardShortcutsModalOpen: boolean;
+
+  // Library Panel State
+  libraryPanelOpen: boolean;
   
   // Map State
   mapLoaded: boolean;
@@ -97,6 +100,11 @@ interface EditorState {
   openKeyboardShortcutsModal: () => void;
   closeKeyboardShortcutsModal: () => void;
   closeAllModals: () => void;
+
+  // Actions - Library Panel
+  toggleLibraryPanel: () => void;
+  openLibraryPanel: () => void;
+  closeLibraryPanel: () => void;
   
   // Actions - Map
   setMapLoaded: (loaded: boolean) => void;
@@ -148,6 +156,7 @@ export const useEditorStore = create<EditorState>()(
       exportModalOpen: false,
       templateModalOpen: false,
       keyboardShortcutsModalOpen: false,
+      libraryPanelOpen: false,
       mapLoaded: false,
       mapInteractive: true,
       showCoordinates: true,
@@ -405,6 +414,25 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
+      // Library Panel Actions
+      toggleLibraryPanel: () => {
+        set((state) => {
+          state.libraryPanelOpen = !state.libraryPanelOpen;
+        });
+      },
+
+      openLibraryPanel: () => {
+        set((state) => {
+          state.libraryPanelOpen = true;
+        });
+      },
+
+      closeLibraryPanel: () => {
+        set((state) => {
+          state.libraryPanelOpen = false;
+        });
+      },
+
       // Map Actions
       setMapLoaded: (loaded) => {
         set((state) => {
@@ -521,3 +549,4 @@ export const selectMapLoaded = (state: EditorState) => state.mapLoaded;
 export const selectIsDrawing = (state: EditorState) => state.isDrawing;
 export const selectDrawingCoordinates = (state: EditorState) => state.drawingCoordinates;
 export const selectDrawingPoints = (state: EditorState) => state.drawingCoordinates;
+export const selectLibraryPanelOpen = (state: EditorState) => state.libraryPanelOpen;

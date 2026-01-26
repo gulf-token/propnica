@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================================
-# PropertyClips - Remotion Lambda Deployment Script
+# Propnica - Remotion Lambda Deployment Script
 # ===========================================
 
 set -e
@@ -10,7 +10,7 @@ set -e
 REGION="${AWS_REGION:-eu-west-1}"
 ENVIRONMENT="${ENVIRONMENT:-production}"
 FUNCTION_NAME="remotion-render-${ENVIRONMENT}"
-SITE_NAME="propertyclips-${ENVIRONMENT}"
+SITE_NAME="propnica-${ENVIRONMENT}"
 
 # Colours for output
 RED='\033[0;31m'
@@ -19,7 +19,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Colour
 
 echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}PropertyClips Remotion Lambda Deployment${NC}"
+echo -e "${GREEN}Propnica Remotion Lambda Deployment${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 echo "Region: ${REGION}"
@@ -122,7 +122,7 @@ if [ -n "$FUNCTION_ARN" ]; then
     # Update SSM parameters
     echo -e "${YELLOW}Updating SSM parameters...${NC}"
     aws ssm put-parameter \
-        --name "/propertyclips/${ENVIRONMENT}/remotion/function-name" \
+        --name "/propnica/${ENVIRONMENT}/remotion/function-name" \
         --value "${FUNCTION_NAME}" \
         --type "String" \
         --overwrite \
@@ -130,7 +130,7 @@ if [ -n "$FUNCTION_ARN" ]; then
     
     SERVE_URL="https://remotionlambda-${REGION}.s3.${REGION}.amazonaws.com/sites/${SITE_ID}/index.html"
     aws ssm put-parameter \
-        --name "/propertyclips/${ENVIRONMENT}/remotion/serve-url" \
+        --name "/propnica/${ENVIRONMENT}/remotion/serve-url" \
         --value "${SERVE_URL}" \
         --type "String" \
         --overwrite \

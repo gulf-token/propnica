@@ -1,4 +1,4 @@
-// PropertyClips Database Schema
+// Propnica Database Schema
 // Using Prisma with Supabase PostgreSQL
 
 generator client {
@@ -25,9 +25,10 @@ model UserProfile {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  projects  Project[]
-  renders   Render[]
-  templates Template[]
+  projects     Project[]
+  renders      Render[]
+  templates    Template[]
+  libraryItems LibraryItem[]
 
   @@map("user_profiles")
 }
@@ -114,8 +115,37 @@ model Template {
 }
 
 // ===========================================
+// Library Item (User's saved elements)
+// ===========================================
+model LibraryItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  name        String          @db.VarChar(200)
+  description String?         @db.Text
+  type        LibraryItemType
+  config      Json            @default("{}")
+  tags        String[]        @default([])
+  usageCount  Int             @default(0) @map("usage_count")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  user UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@map("library_items")
+}
+
+// ===========================================
 // Enums
 // ===========================================
+enum LibraryItemType {
+  ZONE
+  ROUTE
+  TEXT_MARKER
+}
+
 enum RenderStatus {
   QUEUED
   PROCESSING

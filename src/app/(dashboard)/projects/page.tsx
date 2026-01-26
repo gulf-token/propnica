@@ -54,11 +54,37 @@ export default function ProjectsPage() {
   const [sortOrder, setSortOrder] = React.useState<SortOrder>('desc');
 
   // Fetch projects
-  const { data: projects, isLoading, refetch } = trpc.projects.list.useQuery({
-    search: searchQuery || undefined,
-    sortBy,
-    sortOrder,
+  const { data: projectsData, isLoading, refetch } = trpc.projects.list.useQuery({
+    limit: 100,
   });
+
+  // Filter and sort projects client-side
+  const projects = React.useMemo(() => {
+    let result = projectsData?.items ?? [];
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+        // API doesn't return createdAt, so use updatedAt for both
+        comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+
+    return result;
+  }, [projectsData?.items, searchQuery, sortBy, sortOrder]);
 
   // Mutations
   const createProject = trpc.projects.create.useMutation({
@@ -241,7 +267,6 @@ interface ProjectCardProps {
     id: string;
     name: string;
     thumbnailUrl: string | null;
-    createdAt: Date;
     updatedAt: Date;
   };
   onEdit: () => void;
@@ -326,7 +351,6 @@ interface ProjectRowProps {
     id: string;
     name: string;
     thumbnailUrl: string | null;
-    createdAt: Date;
     updatedAt: Date;
   };
   onEdit: () => void;
@@ -362,9 +386,6 @@ function ProjectRow({ project, onEdit, onDuplicate, onDelete }: ProjectRowProps)
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
               Modified {formatRelativeTime(new Date(project.updatedAt))}
-            </span>
-            <span>
-              Created {formatRelativeTime(new Date(project.createdAt))}
             </span>
           </div>
         </div>

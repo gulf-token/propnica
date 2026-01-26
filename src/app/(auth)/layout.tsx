@@ -16,7 +16,7 @@ export default function AuthLayout({
       <header className="p-4">
         <Link href="/" className="flex items-center space-x-2">
           <Video className="h-6 w-6 text-primary" />
-          <span className="font-semibold text-lg">PropertyClips</span>
+          <span className="font-semibold text-lg">propNICA</span>
         </Link>
       </header>
 
@@ -27,7 +27,7 @@ export default function AuthLayout({
 
       {/* Footer */}
       <footer className="p-4 text-center text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} PropertyClips. All rights reserved.
+        &copy; {new Date().getFullYear()} propNICA. All rights reserved.
       </footer>
     </div>
   );

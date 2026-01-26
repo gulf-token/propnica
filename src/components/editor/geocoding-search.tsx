@@ -39,7 +39,7 @@ export interface GeocodingSearchProps {
 async function searchPlaces(query: string): Promise<GeocodingResult[]> {
   if (!query || query.length < 2) return [];
 
-  const accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   if (!accessToken) {
     console.error('Mapbox access token not configured');
     return [];

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PropertyClips - Property Showcase Video Generator
+ * Propnica - Property Showcase Video Generator
  *
  * Generate professional property showcase videos similar to the Dubai Creek Harbour
  * sample, featuring satellite map flyovers, animated polygon boundaries, text labels,
@@ -452,7 +452,7 @@ function createDubaiCreekHarbourConfig() {
         opacity: 0.9,
       },
       watermark: {
-        text: 'PropertyClips',
+        text: 'Propnica',
         position: 'bottom-right',
         fontSize: 12,
         colour: '#FFFFFF',
@@ -612,7 +612,7 @@ function createCustomPropertyConfig(params) {
         opacity: 0.9,
       } : undefined,
       watermark: {
-        text: 'PropertyClips',
+        text: 'Propnica',
         position: 'bottom-right',
         fontSize: 12,
         colour: '#FFFFFF',
@@ -677,7 +677,7 @@ function parseArgs() {
  */
 function printHelp() {
   console.log(`
-PropertyClips - Property Showcase Video Generator
+Propnica - Property Showcase Video Generator
 
 Generate professional property showcase videos with satellite map flyovers,
 animated boundaries, landmark labels, and travel route annotations.
@@ -716,7 +716,7 @@ CONFIGURATION FILE FORMAT:
   - textMarkers: labels and annotations
   - branding: logo and watermark
 
-For more information: https://github.com/your-org/propertyclips
+For more information: https://github.com/your-org/propnica
 `);
 }
 
@@ -855,7 +855,7 @@ async function main() {
 
   console.log('');
   divider();
-  log('  PropertyClips Video Generator', 'blue');
+  log('  Propnica Video Generator', 'blue');
   divider();
   console.log('');
 

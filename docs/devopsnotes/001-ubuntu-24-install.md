@@ -1,6 +1,6 @@
-# PropertyClips Ubuntu 24.04 LTS Installation Guide
+# Propnica Ubuntu 24.04 LTS Installation Guide
 
-This document provides step-by-step instructions for setting up the PropertyClips development environment on a clean Ubuntu 24.04 LTS installation.
+This document provides step-by-step instructions for setting up the Propnica development environment on a clean Ubuntu 24.04 LTS installation.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ sudo apt install -y build-essential curl git wget unzip
 
 ## Step 3: Install Node.js 20 LTS
 
-PropertyClips requires Node.js 20 or higher. Install via NodeSource:
+Propnica requires Node.js 20 or higher. Install via NodeSource:
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -48,7 +48,7 @@ npm install -g pnpm
 
 ## Step 5: Install PostgreSQL
 
-PropertyClips uses PostgreSQL via Supabase locally for development:
+Propnica uses PostgreSQL via Supabase locally for development:
 
 ```bash
 sudo apt install -y postgresql postgresql-contrib
@@ -64,9 +64,9 @@ sudo systemctl enable postgresql
 Create a development database:
 
 ```bash
-sudo -u postgres psql -c "CREATE USER propertyclips WITH PASSWORD 'propertyclips_dev';"
-sudo -u postgres psql -c "CREATE DATABASE propertyclips_dev OWNER propertyclips;"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE propertyclips_dev TO propertyclips;"
+sudo -u postgres psql -c "CREATE USER propnica WITH PASSWORD 'propnica_dev';"
+sudo -u postgres psql -c "CREATE DATABASE propnica_dev OWNER propnica;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE propnica_dev TO propnica;"
 ```
 
 ## Step 6: Install Redis (Optional - for caching)
@@ -120,8 +120,8 @@ ffmpeg -version
 ## Step 9: Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/propertyclips.git
-cd propertyclips
+git clone https://github.com/your-org/propnica.git
+cd propnica
 ```
 
 ## Step 10: Install Node Dependencies
@@ -144,7 +144,7 @@ Edit `.env.local` and configure the following variables:
 
 ```env
 # Database
-DATABASE_URL="postgresql://propertyclips:propertyclips_dev@localhost:5432/propertyclips_dev"
+DATABASE_URL="postgresql://propnica:propnica_dev@localhost:5432/propnica_dev"
 
 # Supabase (get from your Supabase project)
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
@@ -216,7 +216,7 @@ sudo systemctl status postgresql
 Check connection:
 
 ```bash
-psql -h localhost -U propertyclips -d propertyclips_dev
+psql -h localhost -U propnica -d propnica_dev
 ```
 
 ### Remotion Rendering Issues

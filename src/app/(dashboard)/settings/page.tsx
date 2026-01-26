@@ -183,29 +183,31 @@ function ProfileSettings() {
 // ===========================================
 
 function PreferencesSettings() {
-  const { data: preferences, isLoading } = trpc.user.getPreferences.useQuery();
+  const { data: profile, isLoading } = trpc.user.getProfile.useQuery();
   const updatePreferences = trpc.user.updatePreferences.useMutation();
 
-  const [defaultResolution, setDefaultResolution] = React.useState('1080p');
-  const [defaultFrameRate, setDefaultFrameRate] = React.useState(30);
+  const preferences = profile?.preferences;
+
+  const [defaultResolution, setDefaultResolution] = React.useState<'720p' | '1080p' | '4k'>('1080p');
+  const [defaultDuration, setDefaultDuration] = React.useState(30);
   const [autoSave, setAutoSave] = React.useState(true);
-  const [showGrid, setShowGrid] = React.useState(true);
+  const [showTutorials, setShowTutorials] = React.useState(true);
 
   React.useEffect(() => {
     if (preferences) {
       setDefaultResolution(preferences.defaultResolution || '1080p');
-      setDefaultFrameRate(preferences.defaultFrameRate || 30);
+      setDefaultDuration(preferences.defaultDuration || 30);
       setAutoSave(preferences.autoSave ?? true);
-      setShowGrid(preferences.showGrid ?? true);
+      setShowTutorials(preferences.showTutorials ?? true);
     }
   }, [preferences]);
 
   const handleSave = () => {
     updatePreferences.mutate({
       defaultResolution,
-      defaultFrameRate,
+      defaultDuration,
       autoSave,
-      showGrid,
+      showTutorials,
     });
   };
 
@@ -233,7 +235,7 @@ function PreferencesSettings() {
           <select
             id="resolution"
             value={defaultResolution}
-            onChange={(e) => setDefaultResolution(e.target.value)}
+            onChange={(e) => setDefaultResolution(e.target.value as '720p' | '1080p' | '4k')}
             className="w-full h-10 px-3 rounded-md border border-input bg-background"
           >
             <option value="720p">720p (1280x720)</option>
@@ -243,16 +245,17 @@ function PreferencesSettings() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="frameRate">Default Frame Rate</Label>
+          <Label htmlFor="duration">Default Duration (seconds)</Label>
           <select
-            id="frameRate"
-            value={defaultFrameRate}
-            onChange={(e) => setDefaultFrameRate(Number(e.target.value))}
+            id="duration"
+            value={defaultDuration}
+            onChange={(e) => setDefaultDuration(Number(e.target.value))}
             className="w-full h-10 px-3 rounded-md border border-input bg-background"
           >
-            <option value={24}>24 fps</option>
-            <option value={30}>30 fps</option>
-            <option value={60}>60 fps</option>
+            <option value={15}>15 seconds</option>
+            <option value={30}>30 seconds</option>
+            <option value={60}>60 seconds</option>
+            <option value={120}>2 minutes</option>
           </select>
         </div>
 
@@ -274,15 +277,15 @@ function PreferencesSettings() {
 
         <div className="flex items-center justify-between">
           <div>
-            <Label htmlFor="showGrid">Show Grid</Label>
+            <Label htmlFor="showTutorials">Show Tutorials</Label>
             <p className="text-sm text-muted-foreground">
-              Display alignment grid on the map canvas
+              Display tutorial hints for new users
             </p>
           </div>
           <Switch
-            id="showGrid"
-            checked={showGrid}
-            onCheckedChange={setShowGrid}
+            id="showTutorials"
+            checked={showTutorials}
+            onCheckedChange={setShowTutorials}
           />
         </div>
       </CardContent>
@@ -361,7 +364,7 @@ function NotificationSettings() {
           <div>
             <Label htmlFor="tips">Tips & Tutorials</Label>
             <p className="text-sm text-muted-foreground">
-              Receive tips to get the most out of PropertyClips
+              Receive tips to get the most out of propNICA
             </p>
           </div>
           <Switch
@@ -390,7 +393,7 @@ function NotificationSettings() {
 // ===========================================
 
 function BillingSettings() {
-  const { data: usage } = trpc.user.getUsage.useQuery();
+  const { data: stats } = trpc.user.getStats.useQuery();
 
   return (
     <div className="space-y-6">
@@ -415,30 +418,38 @@ function BillingSettings() {
           <Separator />
 
           <div className="space-y-4">
-            <h4 className="font-medium">Usage This Month</h4>
+            <h4 className="font-medium">Usage Statistics</h4>
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Render Minutes
+                  Total Projects
                 </span>
                 <span className="font-medium">
-                  {usage?.renderMinutesUsed ?? 0} / {usage?.renderMinutesLimit ?? 60}
+                  {stats?.projectCount ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Storage Used
+                  Total Renders
                 </span>
                 <span className="font-medium">
-                  {((usage?.storageUsedMb ?? 0) / 1024).toFixed(2)} GB / {((usage?.storageLimitMb ?? 5120) / 1024).toFixed(0)} GB
+                  {stats?.renderCount ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Projects
+                  Completed Renders
                 </span>
                 <span className="font-medium">
-                  {usage?.projectCount ?? 0} / {usage?.projectLimit ?? 5}
+                  {stats?.completedRenders ?? 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Total Video Duration
+                </span>
+                <span className="font-medium">
+                  {Math.floor((stats?.totalVideoDuration ?? 0) / 60)}m {(stats?.totalVideoDuration ?? 0) % 60}s
                 </span>
               </div>
             </div>

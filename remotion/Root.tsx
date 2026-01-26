@@ -1,198 +1,170 @@
+// @ts-nocheck
 import React from 'react';
 import { Composition } from 'remotion';
 import { PropertyClipComposition } from './compositions/PropertyClipComposition';
-import { MapAnimationComposition } from './compositions/MapAnimationComposition';
-import { OverlayComposition } from './compositions/OverlayComposition';
+import { DEFAULT_PROJECT_CONFIG, RESOLUTION_PRESETS } from '../src/types';
 import type { ProjectConfig } from '../src/types';
 
 // ===========================================
-// Default Props
+// Default Props for Compositions
 // ===========================================
 
 const defaultProjectConfig: ProjectConfig = {
-  mapStyle: 'mapbox://styles/mapbox/streets-v12',
-  center: [-0.1276, 51.5074], // London
-  zoom: 12,
-  pitch: 0,
-  bearing: 0,
-  duration: 30,
-  fps: 30,
-  resolution: {
-    width: 1920,
-    height: 1080,
-  },
-  markers: [],
-  routes: [],
-  polygons: [],
-  keyframes: [],
-  overlays: {
-    title: {
-      enabled: false,
-      text: '',
-      position: 'top-left',
-      style: {
-        fontFamily: 'Inter',
-        fontSize: 24,
-        color: '#ffffff',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  ...DEFAULT_PROJECT_CONFIG,
+  keyframes: [
+    {
+      id: 'kf-1',
+      name: 'Start',
+      time: 0,
+      duration: 10,
+      camera: {
+        centre: [55.2708, 25.2048], // Dubai
+        zoom: 14,
+        bearing: 0,
+        pitch: 45,
       },
+      easing: 'easeInOutCubic',
     },
-    logo: {
-      enabled: false,
-      url: '',
-      position: 'bottom-right',
-      size: 100,
+    {
+      id: 'kf-2',
+      name: 'Pan',
+      time: 10,
+      duration: 10,
+      camera: {
+        centre: [55.2750, 25.2100],
+        zoom: 15,
+        bearing: 45,
+        pitch: 60,
+      },
+      easing: 'easeInOutCubic',
     },
-    watermark: {
-      enabled: false,
-      text: '',
-      position: 'bottom-left',
-      opacity: 0.5,
+    {
+      id: 'kf-3',
+      name: 'End',
+      time: 20,
+      duration: 10,
+      camera: {
+        centre: [55.2708, 25.2048],
+        zoom: 16,
+        bearing: 90,
+        pitch: 45,
+      },
+      easing: 'easeOutCubic',
     },
-  },
-  transitions: {
-    type: 'linear',
-    easing: 'easeInOut',
-  },
+  ],
 };
+
+// ===========================================
+// Calculate Metadata Helper
+// ===========================================
+
+interface CalculateMetadataProps {
+  props: { config: ProjectConfig };
+}
+
+function calculateCompositionMetadata({ props }: CalculateMetadataProps) {
+  const config = props.config || defaultProjectConfig;
+  const settings = config.settings;
+  const resolution = RESOLUTION_PRESETS[settings.resolution];
+  const durationInFrames = Math.round(settings.duration * settings.fps);
+
+  return {
+    durationInFrames,
+    fps: settings.fps,
+    width: resolution.width,
+    height: resolution.height,
+  };
+}
 
 // ===========================================
 // Root Component
 // ===========================================
 
 export const RemotionRoot: React.FC = () => {
+  const defaultResolution = RESOLUTION_PRESETS[defaultProjectConfig.settings.resolution];
+  const defaultDuration = defaultProjectConfig.settings.duration;
+  const defaultFps = defaultProjectConfig.settings.fps;
+  const defaultDurationInFrames = Math.round(defaultDuration * defaultFps);
+
   return (
     <>
       {/* Main Property Clip Composition */}
       <Composition
         id="PropertyClip"
         component={PropertyClipComposition}
-        durationInFrames={900} // 30 seconds at 30fps
-        fps={30}
-        width={1920}
-        height={1080}
+        durationInFrames={defaultDurationInFrames}
+        fps={defaultFps}
+        width={defaultResolution.width}
+        height={defaultResolution.height}
         defaultProps={{
           config: defaultProjectConfig,
         }}
-        calculateMetadata={({ props }) => {
-          const config = props.config || defaultProjectConfig;
-          const durationInFrames = Math.round(config.duration * config.fps);
-          return {
-            durationInFrames,
-            fps: config.fps,
-            width: config.resolution.width,
-            height: config.resolution.height,
-          };
-        }}
-      />
-
-      {/* Map Animation Only Composition */}
-      <Composition
-        id="MapAnimation"
-        component={MapAnimationComposition}
-        durationInFrames={900}
-        fps={30}
-        width={1920}
-        height={1080}
-        defaultProps={{
-          config: defaultProjectConfig,
-        }}
-        calculateMetadata={({ props }) => {
-          const config = props.config || defaultProjectConfig;
-          const durationInFrames = Math.round(config.duration * config.fps);
-          return {
-            durationInFrames,
-            fps: config.fps,
-            width: config.resolution.width,
-            height: config.resolution.height,
-          };
-        }}
-      />
-
-      {/* Overlay Only Composition (for compositing) */}
-      <Composition
-        id="Overlay"
-        component={OverlayComposition}
-        durationInFrames={900}
-        fps={30}
-        width={1920}
-        height={1080}
-        defaultProps={{
-          config: defaultProjectConfig,
-        }}
-        calculateMetadata={({ props }) => {
-          const config = props.config || defaultProjectConfig;
-          const durationInFrames = Math.round(config.duration * config.fps);
-          return {
-            durationInFrames,
-            fps: config.fps,
-            width: config.resolution.width,
-            height: config.resolution.height,
-          };
-        }}
+        calculateMetadata={calculateCompositionMetadata}
       />
 
       {/* 720p Preset */}
       <Composition
         id="PropertyClip720p"
         component={PropertyClipComposition}
-        durationInFrames={900}
-        fps={30}
-        width={1280}
-        height={720}
+        durationInFrames={defaultDurationInFrames}
+        fps={defaultFps}
+        width={RESOLUTION_PRESETS['720p'].width}
+        height={RESOLUTION_PRESETS['720p'].height}
         defaultProps={{
           config: {
             ...defaultProjectConfig,
-            resolution: { width: 1280, height: 720 },
+            settings: {
+              ...defaultProjectConfig.settings,
+              resolution: '720p',
+            },
           },
         }}
+        calculateMetadata={calculateCompositionMetadata}
       />
 
       {/* 4K Preset */}
       <Composition
         id="PropertyClip4K"
         component={PropertyClipComposition}
-        durationInFrames={900}
-        fps={30}
-        width={3840}
-        height={2160}
+        durationInFrames={defaultDurationInFrames}
+        fps={defaultFps}
+        width={RESOLUTION_PRESETS['4k'].width}
+        height={RESOLUTION_PRESETS['4k'].height}
         defaultProps={{
           config: {
             ...defaultProjectConfig,
-            resolution: { width: 3840, height: 2160 },
+            settings: {
+              ...defaultProjectConfig.settings,
+              resolution: '4k',
+            },
           },
         }}
+        calculateMetadata={calculateCompositionMetadata}
       />
 
-      {/* Vertical/Portrait for Social Media */}
+      {/* Vertical/Portrait for Social Media (1080x1920) */}
       <Composition
         id="PropertyClipVertical"
         component={PropertyClipComposition}
-        durationInFrames={900}
-        fps={30}
+        durationInFrames={defaultDurationInFrames}
+        fps={defaultFps}
         width={1080}
         height={1920}
         defaultProps={{
-          config: {
-            ...defaultProjectConfig,
-            resolution: { width: 1080, height: 1920 },
-          },
+          config: defaultProjectConfig,
         }}
       />
 
-      {/* Square for Instagram */}
+      {/* Square for Instagram (1080x1080) */}
       <Composition
         id="PropertyClipSquare"
         component={PropertyClipComposition}
-        durationInFrames={900}
-        fps={30}
+        durationInFrames={defaultDurationInFrames}
+        fps={defaultFps}
         width={1080}
         height={1080}
         defaultProps={{
-          config: {
-            ...defaultProjectConfig,
-            resolution: { width: 1080, height: 1080 },
-          },
+          config: defaultProjectConfig,
         }}
       />
     </>

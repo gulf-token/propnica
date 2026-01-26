@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix critical type system issues and add Ubuntu 24 install guide\n\nThis commit addresses 11 critical issues identified in the Code Review Report:\n\nIssues Fixed:\n- #1: Add AWS SDK dependencies \\(@aws-sdk/client-s3, @aws-sdk/s3-request-presigner\\)\n- #2: Fix MarkerRenderer.tsx \\(MapMarker to TextMarker, correct property access\\)\n- #3: Fix RouteRenderer.tsx nested property access \\(route.style.colour, etc.\\)\n- #4: Add TitleStyle and TitleConfig interfaces to types\n- #5: Refactor PropertyClipComposition.tsx for type alignment\n- #6: Fix render-modal.tsx tRPC procedure names \\(start to create, getStatus to get\\)\n- #7: Update Toolbar to accept callback props from editor page\n- #8 & #9: Fix timeline.tsx function and variable names\n- #10: Fix settings-modal.tsx store and API alignment\n- #11: Fix MapRenderer.tsx property access patterns\n\nAdditional Changes:\n- Fix editor-store.ts missing closing brace\n- Fix superjson version \\(3.0.0 does not exist, changed to 2.2.1\\)\n- Update overlay components for UK English spelling \\(colour, centre\\)\n- Add Ubuntu 24.04 LTS installation guide in docs/devopsnotes/\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(source .env.local)",
+      "Bash(DATABASE_URL=\"$DATABASE_URL\" DIRECT_URL=\"$DIRECT_URL\" npx prisma db push:*)",
+      "Bash(jq:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:IHhuyBZPJ1AvDorW@db.tgqoybbhrkvjecgrneug.supabase.co:5432/postgres\" DIRECT_URL=\"postgresql://postgres:IHhuyBZPJ1AvDorW@db.tgqoybbhrkvjecgrneug.supabase.co:5432/postgres\" npx prisma migrate dev:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:IHhuyBZPJ1AvDorW@db.tgqoybbhrkvjecgrneug.supabase.co:5432/postgres\" DIRECT_URL=\"postgresql://postgres:IHhuyBZPJ1AvDorW@db.tgqoybbhrkvjecgrneug.supabase.co:5432/postgres\" npx prisma db push:*)",
+      "Bash(grep:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(aws sts get-caller-identity:*)",
+      "Bash(npx remotion lambda functions:*)",
+      "Bash(npx remotion lambda sites create:*)",
+      "Bash(source:*)",
+      "Bash(psql:*)",
+      "Bash(xargs kill -9)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git remote set-url:*)"
+    ]
+  }
+}

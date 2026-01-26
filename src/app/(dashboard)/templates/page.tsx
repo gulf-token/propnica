@@ -24,8 +24,8 @@ interface Template {
   name: string;
   description: string | null;
   thumbnailUrl: string | null;
-  category: string;
-  isPremium: boolean;
+  category: string | null;
+  isPublic: boolean;
   usageCount: number;
   createdAt: Date;
 }
@@ -36,20 +36,30 @@ export default function TemplatesPage() {
   const [selectedCategory, setSelectedCategory] = React.useState('all');
 
   // Fetch templates
-  const { data: templates, isLoading } = trpc.templates.list.useQuery({
-    search: searchQuery || undefined,
+  const { data: templatesData, isLoading } = trpc.templates.list.useQuery({
     category: selectedCategory === 'all' ? undefined : selectedCategory,
   });
 
+  // Filter templates client-side by search query
+  const templates = React.useMemo(() => {
+    const items = templatesData?.items ?? [];
+    if (!searchQuery) return items;
+    const query = searchQuery.toLowerCase();
+    return items.filter((t) =>
+      t.name.toLowerCase().includes(query) ||
+      t.description?.toLowerCase().includes(query)
+    );
+  }, [templatesData?.items, searchQuery]);
+
   // Create project from template
-  const createFromTemplate = trpc.projects.createFromTemplate.useMutation({
+  const useTemplate = trpc.templates.useTemplate.useMutation({
     onSuccess: (project) => {
       router.push(`/editor/${project.id}`);
     },
   });
 
   const handleUseTemplate = (templateId: string) => {
-    createFromTemplate.mutate({ templateId });
+    useTemplate.mutate({ templateId });
   };
 
   // Category tabs
@@ -121,7 +131,7 @@ export default function TemplatesPage() {
                     key={template.id}
                     template={template}
                     onUse={() => handleUseTemplate(template.id)}
-                    isLoading={createFromTemplate.isPending}
+                    isLoading={useTemplate.isPending}
                   />
                 ))}
               </div>
@@ -165,7 +175,7 @@ export default function TemplatesPage() {
                 key={template.id}
                 template={template}
                 onUse={() => handleUseTemplate(template.id)}
-                isLoading={createFromTemplate.isPending}
+                isLoading={useTemplate.isPending}
               />
             ))}
           </div>
@@ -200,11 +210,6 @@ function TemplateCard({ template, onUse, isLoading }: TemplateCardProps) {
             <span className="text-4xl font-bold text-primary/30">
               {template.name.charAt(0)}
             </span>
-          </div>
-        )}
-        {template.isPremium && (
-          <div className="absolute top-2 right-2 bg-yellow-500 text-yellow-950 text-xs font-semibold px-2 py-0.5 rounded">
-            PRO
           </div>
         )}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
@@ -257,11 +262,6 @@ function FeaturedTemplateCard({ template, onUse, isLoading }: TemplateCardProps)
             <span className="text-6xl font-bold text-primary/30">
               {template.name.charAt(0)}
             </span>
-          </div>
-        )}
-        {template.isPremium && (
-          <div className="absolute top-3 right-3 bg-yellow-500 text-yellow-950 text-xs font-semibold px-2 py-1 rounded">
-            PRO
           </div>
         )}
       </div>

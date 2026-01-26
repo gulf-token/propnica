@@ -45,6 +45,8 @@ const mapStyles: { value: MapStyle; label: string }[] = [
   { value: 'streets', label: 'Streets' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+  { value: 'outdoors', label: 'Outdoors' },
+  { value: 'terrain', label: 'Terrain' },
 ];
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {

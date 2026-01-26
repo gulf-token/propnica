@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================================
-# PropertyClips - Terraform Infrastructure Deployment
+# Propnica - Terraform Infrastructure Deployment
 # ===========================================
 
 set -e
@@ -17,7 +17,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Colour
 
 echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}PropertyClips Infrastructure Deployment${NC}"
+echo -e "${GREEN}Propnica Infrastructure Deployment${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 echo "Environment: ${ENVIRONMENT}"
@@ -58,7 +58,7 @@ if [ ! -f "terraform.tfvars" ]; then
 fi
 
 # Create S3 bucket for Terraform state if it doesn't exist
-STATE_BUCKET="propertyclips-terraform-state"
+STATE_BUCKET="propnica-terraform-state"
 if ! aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
     echo -e "${YELLOW}Creating Terraform state bucket...${NC}"
     aws s3api create-bucket \
@@ -86,7 +86,7 @@ if ! aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
 fi
 
 # Create DynamoDB table for state locking if it doesn't exist
-LOCK_TABLE="propertyclips-terraform-locks"
+LOCK_TABLE="propnica-terraform-locks"
 if ! aws dynamodb describe-table --table-name "${LOCK_TABLE}" --region "${REGION}" 2>/dev/null; then
     echo -e "${YELLOW}Creating Terraform lock table...${NC}"
     aws dynamodb create-table \

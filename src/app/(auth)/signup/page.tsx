@@ -123,7 +123,7 @@ export default function SignupPage() {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
             Click the link in the email to verify your account and get started
-            with PropertyClips.
+            with propNICA.
           </p>
         </CardContent>
         <CardFooter className="justify-center">
@@ -140,7 +140,7 @@ export default function SignupPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Create an account</CardTitle>
         <CardDescription>
-          Get started with PropertyClips today
+          Get started with propNICA today
         </CardDescription>
       </CardHeader>
 

@@ -20,8 +20,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'PropertyClips',
-    template: '%s | PropertyClips',
+    default: 'propNICA',
+    template: '%s | propNICA',
   },
   description:
     'Create stunning animated property videos with interactive maps and professional styling.',
@@ -31,24 +31,26 @@ export const metadata: Metadata = {
     'animated maps',
     'video creation',
     'property showcase',
+    'UAE real estate',
+    'Dubai property',
   ],
-  authors: [{ name: 'PropertyClips' }],
-  creator: 'PropertyClips',
+  authors: [{ name: 'propNICA' }],
+  creator: 'propNICA',
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || 'https://propertyclips.com'
+    process.env.NEXT_PUBLIC_APP_URL || 'https://propnica.com'
   ),
   openGraph: {
     type: 'website',
     locale: 'en_GB',
     url: '/',
-    title: 'PropertyClips',
+    title: 'propNICA',
     description:
       'Create stunning animated property videos with interactive maps and professional styling.',
-    siteName: 'PropertyClips',
+    siteName: 'propNICA',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PropertyClips',
+    title: 'propNICA',
     description:
       'Create stunning animated property videos with interactive maps and professional styling.',
   },
@@ -64,9 +66,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
   },
   manifest: '/site.webmanifest',
 };

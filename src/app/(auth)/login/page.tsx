@@ -25,7 +25,7 @@ import {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
+  const redirectTo = searchParams.get('redirectTo') || '/';
 
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -52,19 +52,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      console.log('Attempting login with:', email);
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('Login response:', { data, error: signInError });
+
       if (signInError) {
+        console.error('Login error:', signInError);
         setError(signInError.message);
         return;
       }
 
-      // Redirect to dashboard or original destination
-      router.push(redirectTo);
-      router.refresh();
+      console.log('Login successful, redirecting to:', redirectTo);
+      // Hard redirect to force session check in middleware
+      window.location.href = redirectTo;
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
     } finally {

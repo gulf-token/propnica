@@ -130,45 +130,23 @@ export function DrawingManager({
     if (!isDrawing || drawingPoints.length < 2) return;
 
     if (selectedTool === 'drawZone' && drawingPoints.length >= 3) {
-      const newZone = addZone({
-        name: zoneName || `Zone ${zones.length + 1}`,
-        coordinates: drawingPoints,
-        style: {
-          fillColour: style.fillColour,
-          fillOpacity: style.fillOpacity,
-          strokeColour: style.strokeColour,
-          strokeWidth: style.strokeWidth,
-          strokeOpacity: style.strokeOpacity,
-        },
-        timing: {
-          appearAt: currentTime,
-          fadeDuration: 0.5,
-        },
-      });
+      const zoneId = addZone(
+        drawingPoints,
+        zoneName || `Zone ${zones.length + 1}`
+      );
 
-      if (newZone && onZoneCreated) {
-        onZoneCreated(newZone.id);
+      if (zoneId && onZoneCreated) {
+        onZoneCreated(zoneId);
       }
       setZoneName('');
     } else if (selectedTool === 'drawRoute' && drawingPoints.length >= 2) {
-      const newRoute = addRoute({
-        name: routeName || `Route ${routes.length + 1}`,
-        waypoints: drawingPoints,
-        style: {
-          colour: style.strokeColour,
-          width: style.strokeWidth,
-          opacity: style.strokeOpacity,
-          dashArray: undefined,
-        },
-        timing: {
-          appearAt: currentTime,
-          animationDuration: 2,
-          fadeDuration: 0.5,
-        },
-      });
+      const routeId = addRoute(
+        drawingPoints,
+        routeName || `Route ${routes.length + 1}`
+      );
 
-      if (newRoute && onRouteCreated) {
-        onRouteCreated(newRoute.id);
+      if (routeId && onRouteCreated) {
+        onRouteCreated(routeId);
       }
       setRouteName('');
     }

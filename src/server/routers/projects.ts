@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { Prisma } from '@prisma/client';
 import { createTRPCRouter, protectedProcedure } from '@/server/trpc';
 import { ProjectConfig, DEFAULT_PROJECT_CONFIG } from '@/types';
 
@@ -13,9 +14,10 @@ const projectConfigSchema = z.object({
     duration: z.number().min(5).max(300),
     fps: z.number().min(24).max(60),
     resolution: z.enum(['720p', '1080p', '4k']),
+    aspectRatio: z.enum(['16:9', '9:16', '4:3', '3:4', '1:1', '21:9', '4:5', '2:3', 'custom']).optional(),
   }),
   mapSettings: z.object({
-    style: z.enum(['satellite', 'satellite-streets', 'streets', 'light', 'dark']),
+    style: z.enum(['satellite', 'satellite-streets', 'streets', 'light', 'dark', 'outdoors', 'terrain']),
     accessToken: z.string().optional(),
   }),
   keyframes: z.array(z.any()),
@@ -93,7 +95,7 @@ export const projectsRouter = createTRPCRouter({
 
       return {
         ...project,
-        config: project.config as ProjectConfig,
+        config: project.config as unknown as ProjectConfig,
       };
     }),
 
@@ -119,7 +121,7 @@ export const projectsRouter = createTRPCRouter({
         });
 
         if (template) {
-          config = template.config as ProjectConfig;
+          config = template.config as unknown as ProjectConfig;
           // Increment template usage count
           await ctx.prisma.template.update({
             where: { id: input.templateId },
@@ -133,14 +135,14 @@ export const projectsRouter = createTRPCRouter({
           userId: ctx.userId,
           name: input.name,
           description: input.description ?? null,
-          config: config as unknown as Record<string, unknown>,
+          config: config as unknown as Prisma.InputJsonValue,
           duration: config.settings.duration,
         },
       });
 
       return {
         ...project,
-        config: project.config as ProjectConfig,
+        config: project.config as unknown as ProjectConfig,
       };
     }),
 
@@ -178,14 +180,14 @@ export const projectsRouter = createTRPCRouter({
         where: { id },
         data: {
           ...updateData,
-          config: updateData.config as unknown as Record<string, unknown>,
+          config: updateData.config as unknown as Prisma.InputJsonValue,
           duration: updateData.config?.settings.duration,
         },
       });
 
       return {
         ...project,
-        config: project.config as ProjectConfig,
+        config: project.config as unknown as ProjectConfig,
       };
     }),
 
@@ -248,14 +250,14 @@ export const projectsRouter = createTRPCRouter({
           userId: ctx.userId,
           name: input.name ?? `${original.name} (copy)`,
           description: original.description,
-          config: original.config as Record<string, unknown>,
+          config: original.config as unknown as Prisma.InputJsonValue,
           duration: original.duration,
         },
       });
 
       return {
         ...project,
-        config: project.config as ProjectConfig,
+        config: project.config as unknown as ProjectConfig,
       };
     }),
 

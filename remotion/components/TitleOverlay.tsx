@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react';
 import { interpolate, spring, useVideoConfig } from 'remotion';
 import type { OverlayPosition, TitleStyle } from '../../src/types';

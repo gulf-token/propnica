@@ -12,14 +12,14 @@ Config.overrideWebpackConfig((currentConfiguration) => {
 // Set default codec
 Config.setCodec('h264');
 
-// Set quality
-Config.setQuality(90);
+// Set JPEG quality (0-100)
+Config.setJpegQuality(90);
 
 // Concurrency for rendering
 Config.setConcurrency(4);
 
 // Log level
-Config.setLogLevel('info');
+Config.setLevel('info');
 
 // Enable Chrome sandbox (required for some environments)
 Config.setChromiumDisableWebSecurity(true);

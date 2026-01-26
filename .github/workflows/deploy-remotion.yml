@@ -112,7 +112,7 @@ jobs:
       - name: Update Lambda function configuration
         run: |
           aws lambda update-function-configuration \
-            --function-name propertyclips-remotion-render \
+            --function-name propnica-remotion-render \
             --timeout 900 \
             --memory-size 3008 \
             --environment "Variables={NODE_ENV=production,REMOTION_SERVE_URL=${{ secrets.REMOTION_SERVE_URL }}}"
@@ -222,7 +222,7 @@ jobs:
       - name: Test Lambda function
         run: |
           RESPONSE=$(aws lambda invoke \
-            --function-name propertyclips-remotion-render \
+            --function-name propnica-remotion-render \
             --payload '{"action": "health-check"}' \
             --cli-binary-format raw-in-base64-out \
             response.json)
@@ -252,7 +252,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*PropertyClips Remotion Lambda Deployed*\n\nEnvironment: ${{ github.event.inputs.environment || 'production' }}\nRegion: ${{ env.AWS_REGION }}\nCommit: ${{ github.sha }}\n\nAll health checks passed."
+                    "text": "*Propnica Remotion Lambda Deployed*\n\nEnvironment: ${{ github.event.inputs.environment || 'production' }}\nRegion: ${{ env.AWS_REGION }}\nCommit: ${{ github.sha }}\n\nAll health checks passed."
                   }
                 }
               ]

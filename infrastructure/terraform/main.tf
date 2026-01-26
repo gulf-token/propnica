@@ -1,5 +1,5 @@
 # ===========================================
-# PropertyClips AWS Infrastructure
+# Propnica AWS Infrastructure
 # Terraform Configuration
 # ===========================================
 
@@ -14,11 +14,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "propertyclips-terraform-state"
+    bucket         = "propnica-terraform-state"
     key            = "infrastructure/terraform.tfstate"
     region         = "eu-west-1"
     encrypt        = true
-    dynamodb_table = "propertyclips-terraform-locks"
+    dynamodb_table = "propnica-terraform-locks"
   }
 }
 
@@ -31,7 +31,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "PropertyClips"
+      Project     = "Propnica"
       Environment = var.environment
       ManagedBy   = "Terraform"
     }
@@ -57,7 +57,7 @@ variable "environment" {
 variable "domain_name" {
   description = "Domain name for the application"
   type        = string
-  default     = "propertyclips.app"
+  default     = "propnica.app"
 }
 
 variable "remotion_lambda_memory" {
@@ -85,7 +85,7 @@ data "aws_region" "current" {}
 
 # Renders bucket - stores rendered videos
 resource "aws_s3_bucket" "renders" {
-  bucket = "propertyclips-renders-${var.environment}"
+  bucket = "propnica-renders-${var.environment}"
 }
 
 resource "aws_s3_bucket_versioning" "renders" {
@@ -135,7 +135,7 @@ resource "aws_s3_bucket_public_access_block" "renders" {
 
 # Assets bucket - stores user uploads
 resource "aws_s3_bucket" "assets" {
-  bucket = "propertyclips-assets-${var.environment}"
+  bucket = "propnica-assets-${var.environment}"
 }
 
 resource "aws_s3_bucket_versioning" "assets" {
@@ -168,7 +168,7 @@ resource "aws_s3_bucket_public_access_block" "assets" {
 
 # Thumbnails bucket - stores video thumbnails
 resource "aws_s3_bucket" "thumbnails" {
-  bucket = "propertyclips-thumbnails-${var.environment}"
+  bucket = "propnica-thumbnails-${var.environment}"
 }
 
 resource "aws_s3_bucket_cors_configuration" "thumbnails" {
@@ -214,7 +214,7 @@ resource "aws_s3_bucket_policy" "thumbnails_public" {
 # ===========================================
 
 resource "aws_iam_role" "remotion_lambda" {
-  name = "propertyclips-remotion-lambda-${var.environment}"
+  name = "propnica-remotion-lambda-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -231,7 +231,7 @@ resource "aws_iam_role" "remotion_lambda" {
 }
 
 resource "aws_iam_role_policy" "remotion_lambda_s3" {
-  name = "propertyclips-remotion-s3-${var.environment}"
+  name = "propnica-remotion-s3-${var.environment}"
   role = aws_iam_role.remotion_lambda.id
 
   policy = jsonencode({
@@ -259,7 +259,7 @@ resource "aws_iam_role_policy" "remotion_lambda_s3" {
 }
 
 resource "aws_iam_role_policy" "remotion_lambda_logs" {
-  name = "propertyclips-remotion-logs-${var.environment}"
+  name = "propnica-remotion-logs-${var.environment}"
   role = aws_iam_role.remotion_lambda.id
 
   policy = jsonencode({
@@ -283,7 +283,7 @@ resource "aws_iam_role_policy" "remotion_lambda_logs" {
 # ===========================================
 
 resource "aws_sqs_queue" "render_jobs" {
-  name                       = "propertyclips-render-jobs-${var.environment}"
+  name                       = "propnica-render-jobs-${var.environment}"
   delay_seconds              = 0
   max_message_size           = 262144
   message_retention_seconds  = 86400
@@ -297,7 +297,7 @@ resource "aws_sqs_queue" "render_jobs" {
 }
 
 resource "aws_sqs_queue" "render_jobs_dlq" {
-  name                      = "propertyclips-render-jobs-dlq-${var.environment}"
+  name                      = "propnica-render-jobs-dlq-${var.environment}"
   message_retention_seconds = 1209600 # 14 days
 }
 
@@ -306,7 +306,7 @@ resource "aws_sqs_queue" "render_jobs_dlq" {
 # ===========================================
 
 resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
-  alarm_name          = "propertyclips-render-dlq-messages-${var.environment}"
+  alarm_name          = "propnica-render-dlq-messages-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "ApproximateNumberOfMessagesVisible"
@@ -326,7 +326,7 @@ resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
 # ===========================================
 
 resource "aws_cloudfront_origin_access_control" "renders" {
-  name                              = "propertyclips-renders-oac-${var.environment}"
+  name                              = "propnica-renders-oac-${var.environment}"
   description                       = "OAC for renders bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -336,7 +336,7 @@ resource "aws_cloudfront_origin_access_control" "renders" {
 resource "aws_cloudfront_distribution" "renders" {
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "PropertyClips Renders CDN - ${var.environment}"
+  comment             = "Propnica Renders CDN - ${var.environment}"
   default_root_object = ""
   price_class         = "PriceClass_100"
 

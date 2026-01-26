@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================================
-# PropertyClips - Database Setup Script
+# Propnica - Database Setup Script
 # ===========================================
 
 set -e
@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Colour
 
 echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}PropertyClips Database Setup${NC}"
+echo -e "${GREEN}Propnica Database Setup${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 

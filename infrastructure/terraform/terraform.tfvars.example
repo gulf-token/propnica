@@ -1,5 +1,5 @@
 # ===========================================
-# PropertyClips Terraform Variables
+# Propnica Terraform Variables
 # ===========================================
 
 # Copy this file to terraform.tfvars and fill in your values
@@ -10,7 +10,7 @@ aws_region  = "eu-west-1"
 environment = "production"
 
 # Domain Configuration
-domain_name = "propertyclips.app"
+domain_name = "propnica.app"
 
 # Lambda Configuration
 remotion_lambda_memory  = 2048  # MB

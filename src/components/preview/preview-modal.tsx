@@ -130,8 +130,13 @@ interface PreviewModalProps {
 // ===========================================
 
 export function PreviewModal({ open, onOpenChange }: PreviewModalProps) {
-  const { project } = useProjectStore();
-  const { isPlaying, setIsPlaying, currentTime, setCurrentTime } = useEditorStore();
+  const config = useProjectStore((state) => state.config);
+  const projectName = useProjectStore((state) => state.projectName);
+  const isPlaying = useEditorStore((state) => state.isPlaying);
+  const play = useEditorStore((state) => state.play);
+  const pause = useEditorStore((state) => state.pause);
+  const currentTime = useEditorStore((state) => state.currentTime);
+  const setCurrentTime = useEditorStore((state) => state.setCurrentTime);
 
   const [volume, setVolume] = React.useState(80);
   const [duration, setDuration] = React.useState(0);
@@ -141,14 +146,12 @@ export function PreviewModal({ open, onOpenChange }: PreviewModalProps) {
 
   // Calculate total duration from keyframes
   React.useEffect(() => {
-    if (project?.data?.keyframes) {
-      const keyframes = project.data.keyframes;
-      if (keyframes.length > 0) {
-        const maxTime = Math.max(...keyframes.map((kf) => kf.time + (kf.duration || 0)));
-        setDuration(maxTime);
-      }
+    if (config?.keyframes && config.keyframes.length > 0) {
+      const keyframes = config.keyframes;
+      const maxTime = Math.max(...keyframes.map((kf: { time: number; duration?: number }) => kf.time + (kf.duration || 0)));
+      setDuration(maxTime);
     }
-  }, [project]);
+  }, [config]);
 
   // Animation loop
   React.useEffect(() => {
@@ -169,7 +172,7 @@ export function PreviewModal({ open, onOpenChange }: PreviewModalProps) {
       setCurrentTime(newTime);
 
       if (newTime >= duration) {
-        setIsPlaying(false);
+        pause();
         pausedTimeRef.current = 0;
       } else {
         animationRef.current = requestAnimationFrame(animate);
@@ -183,22 +186,24 @@ export function PreviewModal({ open, onOpenChange }: PreviewModalProps) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, open, duration, setCurrentTime, setIsPlaying]);
+  }, [isPlaying, open, duration, setCurrentTime, pause]);
 
   // Reset when modal closes
   React.useEffect(() => {
     if (!open) {
-      setIsPlaying(false);
+      pause();
       setCurrentTime(0);
       pausedTimeRef.current = 0;
     }
-  }, [open, setIsPlaying, setCurrentTime]);
+  }, [open, pause, setCurrentTime]);
 
   const handlePlayPause = () => {
     if (isPlaying) {
       pausedTimeRef.current = performance.now() - startTimeRef.current;
+      pause();
+    } else {
+      play();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (value: number[]) => {
@@ -221,7 +226,7 @@ export function PreviewModal({ open, onOpenChange }: PreviewModalProps) {
   const handleSkipForward = () => {
     setCurrentTime(duration);
     pausedTimeRef.current = duration;
-    setIsPlaying(false);
+    pause();
   };
 
   const formatTime = (ms: number) => {
@@ -236,7 +241,7 @@ export function PreviewModal({ open, onOpenChange }: PreviewModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-0">
-          <DialogTitle>Preview: {project?.name || 'Untitled Project'}</DialogTitle>
+          <DialogTitle>Preview: {projectName || 'Untitled Project'}</DialogTitle>
         </DialogHeader>
 
         <div className="p-4">

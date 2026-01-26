@@ -17,7 +17,7 @@ export function Footer() {
           <div className="space-y-4">
             <Link href="/" className="flex items-center space-x-2">
               <Video className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">PropertyClips</span>
+              <span className="font-semibold text-lg">propNICA</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Create stunning animated property videos with interactive maps and
@@ -137,7 +137,7 @@ export function Footer() {
 
         {/* Copyright */}
         <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-          <p>&copy; {currentYear} PropertyClips. All rights reserved.</p>
+          <p>&copy; {currentYear} propNICA. All rights reserved.</p>
         </div>
       </div>
     </footer>

@@ -141,7 +141,7 @@ export function DraggableKeyframe({
       {/* Keyframe Content */}
       <div className="px-5 h-full flex items-center justify-between">
         <span className="text-[10px] text-white font-medium truncate flex-1">
-          {keyframe.label || formatTime(keyframe.time)}
+          {keyframe.name || formatTime(keyframe.time)}
         </span>
 
         {/* Context Menu */}
@@ -250,14 +250,16 @@ export function DraggableTrack({
   React.useEffect(() => {
     if (!dragState.isDragging || !dragState.keyframeId) return;
 
+    const keyframeId = dragState.keyframeId;
+
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - dragState.startX;
       const deltaTime = deltaX / pixelsPerSecond;
-      const keyframe = keyframes.find((k) => k.id === dragState.keyframeId);
+      const keyframe = keyframes.find((k) => k.id === keyframeId);
       if (!keyframe) return;
 
       const newTime = Math.max(0, Math.min(dragState.startTime + deltaTime, duration - keyframe.duration));
-      onReorderKeyframes(dragState.keyframeId, newTime);
+      onReorderKeyframes(keyframeId, newTime);
     };
 
     const handleMouseUp = () => {

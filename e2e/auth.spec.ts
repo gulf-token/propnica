@@ -12,7 +12,7 @@ test.describe('Authentication Flow', () => {
   test('should display the login page', async ({ page }) => {
     await page.goto('/login');
     
-    await expect(page).toHaveTitle(/PropertyClips/);
+    await expect(page).toHaveTitle(/Propnica/);
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
     await expect(page.getByLabel(/email/i)).toBeVisible();
     await expect(page.getByLabel(/password/i)).toBeVisible();
@@ -82,7 +82,7 @@ test.describe('Homepage', () => {
   test('should load the homepage', async ({ page }) => {
     await page.goto('/');
     
-    await expect(page).toHaveTitle(/PropertyClips/);
+    await expect(page).toHaveTitle(/Propnica/);
   });
 
   test('should have navigation links', async ({ page }) => {

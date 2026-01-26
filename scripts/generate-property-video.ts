@@ -1,6 +1,6 @@
 #!/usr/bin/env npx ts-node
 /**
- * PropertyClips - Property Showcase Video Generator
+ * Propnica - Property Showcase Video Generator
  *
  * This script demonstrates how to generate a property showcase video similar to
  * the Dubai Creek Harbour sample video, featuring:
@@ -21,7 +21,7 @@
  *   - Mapbox Access Token (set NEXT_PUBLIC_MAPBOX_TOKEN environment variable)
  *   - FFmpeg installed on your system
  *
- * @author PropertyClips
+ * @author Propnica
  * @version 1.0.0
  */
 
@@ -30,7 +30,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // =============================================================================
-// Type Definitions (matching PropertyClips types)
+// Type Definitions (matching Propnica types)
 // =============================================================================
 
 interface ProjectConfig {
@@ -719,7 +719,7 @@ function createDubaiCreekHarbourConfig(): ProjectConfig {
         opacity: 0.9,
       },
       watermark: {
-        text: 'PropertyClips',
+        text: 'Propnica',
         position: 'bottom-right',
         fontSize: 12,
         colour: '#FFFFFF',
@@ -885,7 +885,7 @@ function createCustomPropertyTemplate(
           }
         : undefined,
       watermark: {
-        text: 'PropertyClips',
+        text: 'Propnica',
         position: 'bottom-right',
         fontSize: 12,
         colour: '#FFFFFF',
@@ -922,7 +922,7 @@ async function renderVideo(
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
   console.log('\n========================================');
-  console.log('PropertyClips Video Generator');
+  console.log('Propnica Video Generator');
   console.log('========================================\n');
   console.log(`Property: ${config.zones[0]?.name ?? 'Custom Property'}`);
   console.log(`Duration: ${config.settings.duration} seconds`);
@@ -1000,7 +1000,7 @@ function parseArgs(): { output: string; example: string; help: boolean } {
 
 function printHelp(): void {
   console.log(`
-PropertyClips - Property Showcase Video Generator
+Propnica - Property Showcase Video Generator
 
 Usage:
   npx ts-node scripts/generate-property-video.ts [options]
@@ -1020,7 +1020,7 @@ Examples:
 Environment Variables:
   NEXT_PUBLIC_MAPBOX_TOKEN    Your Mapbox access token (required)
 
-For more information, visit: https://github.com/your-org/propertyclips
+For more information, visit: https://github.com/your-org/propnica
 `);
 }
 
@@ -1100,12 +1100,15 @@ main().catch((error) => {
 // Export for programmatic use
 // =============================================================================
 
-export {
+export type {
   ProjectConfig,
   Keyframe,
   Zone,
   Route,
   TextMarker,
+};
+
+export {
   createKeyframe,
   createZone,
   createRoute,

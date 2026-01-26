@@ -11,11 +11,23 @@ import { prisma } from '@/lib/prisma';
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const cookieStore = cookies();
+
+  // Debug: Log auth cookies
+  const allCookies = cookieStore.getAll();
+  const authCookies = allCookies.filter(
+    (c) => c.name.includes('supabase') || c.name.includes('auth') || c.name.startsWith('sb-')
+  );
+  console.log('[tRPC Context] Auth cookies:', authCookies.map((c) => c.name));
+
+  // Use auth-helpers-nextjs which properly handles cookie parsing
   const supabase = createServerComponentClient({ cookies: () => cookieStore });
-  
+
+  // Get session (this properly reads from cookies)
   const {
     data: { session },
   } = await supabase.auth.getSession();
+
+  console.log('[tRPC Context] Session:', session?.user?.id ? `found (user: ${session.user.id})` : 'null');
 
   return {
     session,
@@ -50,13 +62,31 @@ const t = initTRPC.context<Context>().create({
 // Middleware
 // ===========================================
 
-const isAuthed = t.middleware(({ ctx, next }) => {
+const isAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session || !ctx.userId) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'You must be logged in to perform this action',
     });
   }
+
+  // Ensure user profile exists in the database (sync Supabase Auth with Prisma)
+  const existingProfile = await ctx.prisma.userProfile.findUnique({
+    where: { userId: ctx.userId },
+  });
+
+  if (!existingProfile) {
+    // Create user profile on first access
+    await ctx.prisma.userProfile.create({
+      data: {
+        userId: ctx.userId,
+        displayName: ctx.session.user.email?.split('@')[0] ?? null,
+        preferences: {},
+      },
+    });
+    console.log(`[tRPC] Created UserProfile for user ${ctx.userId}`);
+  }
+
   return next({
     ctx: {
       ...ctx,

@@ -1,4 +1,4 @@
-# PropertyClips Video Generator
+# Propnica Video Generator
 
 Generate professional property showcase videos with satellite map flyovers, animated boundaries, landmark labels, and travel route annotations.
 
@@ -34,7 +34,7 @@ choco install ffmpeg
 
 ```bash
 # Clone or download the project
-cd propertyclips
+cd propnica
 
 # Install dependencies
 npm install
@@ -336,9 +336,9 @@ sudo apt install ffmpeg
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-org/propertyclips/issues)
-- **Documentation**: [Full Docs](https://docs.propertyclips.io)
-- **Contact**: support@propertyclips.io
+- **Issues**: [GitHub Issues](https://github.com/your-org/propnica/issues)
+- **Documentation**: [Full Docs](https://docs.propnica.io)
+- **Contact**: support@propnica.io
 
 ## Licence
 

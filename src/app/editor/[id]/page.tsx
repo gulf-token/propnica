@@ -3,22 +3,26 @@
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
-import { useProjectStore } from '@/stores';
+import { useProjectStore, useEditorStore } from '@/stores';
 import { Toolbar } from '@/components/editor/toolbar';
 import { PropertyPanel } from '@/components/editor/property-panel';
-import { MapCanvas } from '@/components/editor/map-canvas';
+import { MapCanvas, MapCanvasRef } from '@/components/editor/map-canvas';
 import { Timeline } from '@/components/timeline';
 import { PreviewModal } from '@/components/preview/preview-modal';
 import { RenderModal } from '@/components/preview/render-modal';
 import { KeyboardShortcutsModal } from '@/components/editor/keyboard-shortcuts-modal';
 import { SettingsModal } from '@/components/editor/settings-modal';
+import { LibraryPanel } from '@/components/editor/library-panel';
+import { EditorHeaderControls } from '@/components/editor/editor-controls';
 import {
   Button,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  Separator,
 } from '@/components/ui';
 import type { ProjectConfig } from '@/types';
+import { ASPECT_RATIO_PRESETS, AspectRatioPreset } from '@/types';
 
 // ===========================================
 // Icons
@@ -122,6 +126,8 @@ interface EditorHeaderProps {
   lastSaved: Date | null;
   onSave: () => void;
   onBack: () => void;
+  mapCenter: [number, number];
+  onFlyToLocation: (coordinates: [number, number]) => void;
 }
 
 function EditorHeader({
@@ -131,6 +137,8 @@ function EditorHeader({
   lastSaved,
   onSave,
   onBack,
+  mapCenter,
+  onFlyToLocation,
 }: EditorHeaderProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [name, setName] = React.useState(projectName);
@@ -203,6 +211,14 @@ function EditorHeader({
         )}
       </div>
 
+      {/* Center: Editor Controls */}
+      <div className="hidden md:flex items-center">
+        <EditorHeaderControls
+          mapCenter={mapCenter}
+          onFlyToLocation={onFlyToLocation}
+        />
+      </div>
+
       <div className="flex items-center gap-3">
         {/* Save status indicator */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -245,6 +261,78 @@ function EditorHeader({
 }
 
 // ===========================================
+// Utility: Get CSS aspect ratio value
+// ===========================================
+
+function getAspectRatioValue(aspectRatio: AspectRatioPreset): number {
+  if (aspectRatio === 'custom' || !aspectRatio) {
+    return 16 / 9; // Default to 16:9
+  }
+  const config = ASPECT_RATIO_PRESETS[aspectRatio as Exclude<AspectRatioPreset, 'custom'>];
+  if (!config) return 16 / 9;
+  return config.width / config.height;
+}
+
+// ===========================================
+// Aspect Ratio Container Component
+// ===========================================
+
+interface AspectRatioContainerProps {
+  aspectRatio: AspectRatioPreset;
+  children: React.ReactNode;
+}
+
+function AspectRatioContainer({ aspectRatio, children }: AspectRatioContainerProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = React.useState({ width: 0, height: 0 });
+  const ratio = getAspectRatioValue(aspectRatio);
+
+  React.useEffect(() => {
+    const updateDimensions = () => {
+      if (!containerRef.current?.parentElement) return;
+
+      const parent = containerRef.current.parentElement;
+      const parentWidth = parent.clientWidth - 16; // Account for padding
+      const parentHeight = parent.clientHeight - 16;
+
+      // Calculate the maximum size that fits within parent while maintaining aspect ratio
+      let width = parentWidth;
+      let height = width / ratio;
+
+      if (height > parentHeight) {
+        height = parentHeight;
+        width = height * ratio;
+      }
+
+      setDimensions({ width: Math.floor(width), height: Math.floor(height) });
+    };
+
+    updateDimensions();
+
+    // Observe parent container size changes
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (containerRef.current?.parentElement) {
+      resizeObserver.observe(containerRef.current.parentElement);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [ratio]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative rounded-lg overflow-hidden shadow-xl"
+      style={{
+        width: dimensions.width || '100%',
+        height: dimensions.height || '100%',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ===========================================
 // Main Editor Page
 // ===========================================
 
@@ -266,6 +354,7 @@ export default function EditorPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [lastSaved, setLastSaved] = React.useState<Date | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [mapCenter, setMapCenter] = React.useState<[number, number]>([55.2708, 25.2048]); // Default: Dubai
 
   // Modal states
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -273,10 +362,12 @@ export default function EditorPage() {
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
+  // Map ref for programmatic control
+  const mapRef = React.useRef<MapCanvasRef>(null);
+
   // tRPC queries and mutations
   const { data: projectData, isLoading: isLoadingProject } = trpc.projects.get.useQuery(
-    { id: projectId },
-    { enabled: !!projectId }
+    { id: projectId }
   );
 
   const saveProject = trpc.projects.update.useMutation({
@@ -298,7 +389,7 @@ export default function EditorPage() {
         projectData.id,
         projectData.name,
         projectData.description || null,
-        projectData.data as ProjectConfig
+        projectData.config
       );
       setIsLoading(false);
       setLastSaved(new Date(projectData.updatedAt));
@@ -374,7 +465,7 @@ export default function EditorPage() {
     saveProject.mutate({
       id: storeProjectId,
       name: projectName,
-      data: config,
+      config,
     });
   };
 
@@ -402,6 +493,16 @@ export default function EditorPage() {
 
   const handleOpenSettings = () => {
     setSettingsOpen(true);
+  };
+
+  const handleFlyToLocation = (coordinates: [number, number]) => {
+    mapRef.current?.flyTo(coordinates);
+    setMapCenter(coordinates);
+  };
+
+  // Update mapCenter when map moves
+  const handleMapMove = (center: [number, number]) => {
+    setMapCenter(center);
   };
 
   // Loading state
@@ -442,6 +543,8 @@ export default function EditorPage() {
         lastSaved={lastSaved}
         onSave={handleSave}
         onBack={handleBack}
+        mapCenter={mapCenter}
+        onFlyToLocation={handleFlyToLocation}
       />
 
       {/* Main Editor Area */}
@@ -454,13 +557,26 @@ export default function EditorPage() {
           onOpenSettings={handleOpenSettings}
         />
 
-        {/* Map Canvas */}
-        <div className="flex-1 relative">
-          <MapCanvas />
+        {/* Map Canvas with Aspect Ratio Container */}
+        <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden bg-neutral-900 flex items-center justify-center p-2">
+          <AspectRatioContainer aspectRatio={config?.settings?.aspectRatio ?? '16:9'}>
+            <MapCanvas
+              ref={mapRef}
+              className="absolute inset-0 w-full h-full"
+              onMapMove={handleMapMove}
+            />
+          </AspectRatioContainer>
         </div>
 
         {/* Right Property Panel */}
         <PropertyPanel />
+
+        {/* Library Panel */}
+        <LibraryPanel
+          mapCenter={
+            config?.keyframes[0]?.camera.centre ?? [-73.935242, 40.73061]
+          }
+        />
       </div>
 
       {/* Bottom Timeline */}

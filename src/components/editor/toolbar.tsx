@@ -4,7 +4,6 @@ import * as React from 'react';
 import {
   MousePointer2,
   Hand,
-  PenTool,
   Route,
   Type,
   MapPin,
@@ -22,7 +21,38 @@ import {
   Eye,
   Settings,
   Keyboard,
+  RotateCw,
+  Axis3d,
+  Orbit,
+  Navigation,
+  Archive,
 } from 'lucide-react';
+
+// Custom Zone Icon - polygon with corner points
+function ZoneIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      {/* Polygon shape */}
+      <path d="M4 6 L12 3 L20 6 L18 18 L6 18 Z" fill="currentColor" fillOpacity="0.15" />
+      <path d="M4 6 L12 3 L20 6 L18 18 L6 18 Z" />
+      {/* Corner points */}
+      <circle cx="4" cy="6" r="2" fill="currentColor" />
+      <circle cx="12" cy="3" r="2" fill="currentColor" />
+      <circle cx="20" cy="6" r="2" fill="currentColor" />
+      <circle cx="18" cy="18" r="2" fill="currentColor" />
+      <circle cx="6" cy="18" r="2" fill="currentColor" />
+    </svg>
+  );
+}
 import { useEditorStore, useProjectStore } from '@/stores';
 import { EditorTool } from '@/types';
 import { cn } from '@/lib/utils';
@@ -51,8 +81,15 @@ const primaryTools: ToolDefinition[] = [
   { id: 'pan', icon: Hand, label: 'Pan', shortcut: 'H' },
 ];
 
+const cameraTools: ToolDefinition[] = [
+  { id: 'rotate', icon: RotateCw, label: 'Rotate', shortcut: 'B' },
+  { id: 'tilt', icon: Axis3d, label: 'Tilt/Pitch', shortcut: 'P' },
+  { id: 'orbit', icon: Orbit, label: 'Orbit', shortcut: 'O' },
+  { id: 'flyTo', icon: Navigation, label: 'Fly To', shortcut: 'F' },
+];
+
 const drawingTools: ToolDefinition[] = [
-  { id: 'drawZone', icon: PenTool, label: 'Draw Zone', shortcut: 'Z' },
+  { id: 'drawZone', icon: ZoneIcon, label: 'Draw Zone', shortcut: 'Z' },
   { id: 'drawRoute', icon: Route, label: 'Draw Route', shortcut: 'R' },
   { id: 'addMarker', icon: MapPin, label: 'Add Marker', shortcut: 'M' },
   { id: 'addText', icon: Type, label: 'Add Text', shortcut: 'T' },
@@ -131,6 +168,9 @@ export function Toolbar({
   const snapToGrid = useEditorStore((state) => state.snapToGrid);
   const toggleSnapToGrid = useEditorStore((state) => state.toggleSnapToGrid);
 
+  const libraryPanelOpen = useEditorStore((state) => state.libraryPanelOpen);
+  const toggleLibraryPanel = useEditorStore((state) => state.toggleLibraryPanel);
+
   const canUndo = useProjectStore((state) => state.canUndo());
   const canRedo = useProjectStore((state) => state.canRedo());
   const undo = useProjectStore((state) => state.undo);
@@ -143,6 +183,20 @@ export function Toolbar({
         {/* Primary Tools */}
         <div className="flex flex-col gap-1">
           {primaryTools.map((tool) => (
+            <ToolButton
+              key={tool.id}
+              tool={tool}
+              isActive={selectedTool === tool.id}
+              onClick={() => setTool(tool.id)}
+            />
+          ))}
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* Camera Tools */}
+        <div className="flex flex-col gap-1">
+          {cameraTools.map((tool) => (
             <ToolButton
               key={tool.id}
               tool={tool}
@@ -250,6 +304,25 @@ export function Toolbar({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
               Snap to Grid
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleLibraryPanel}
+                className={cn('tool-button', libraryPanelOpen && 'active')}
+                aria-label="Library"
+                aria-pressed={libraryPanelOpen}
+              >
+                <Archive className="h-5 w-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              <div className="flex items-center gap-2">
+                <span>Library</span>
+                <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">L</kbd>
+              </div>
             </TooltipContent>
           </Tooltip>
         </div>

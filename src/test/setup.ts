@@ -4,7 +4,7 @@
 
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 
 // Cleanup after each test
 afterEach(() => {
@@ -41,7 +41,7 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock scrollTo
-window.scrollTo = vi.fn();
+window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
 
 // Mock fetch
 global.fetch = vi.fn();

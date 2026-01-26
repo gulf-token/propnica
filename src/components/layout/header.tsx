@@ -78,7 +78,7 @@ export function Header({ user }: HeaderProps) {
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center space-x-2 mr-6">
           <Video className="h-6 w-6 text-primary" />
-          <span className="font-semibold text-lg">PropertyClips</span>
+          <span className="font-semibold text-lg">propNICA</span>
         </Link>
 
         {/* Navigation */}

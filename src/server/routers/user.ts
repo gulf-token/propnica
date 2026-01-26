@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { Prisma } from '@prisma/client';
 import { createTRPCRouter, protectedProcedure } from '@/server/trpc';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '@/types';
 
@@ -19,14 +20,14 @@ export const userRouter = createTRPCRouter({
       profile = await ctx.prisma.userProfile.create({
         data: {
           userId: ctx.userId,
-          preferences: DEFAULT_USER_PREFERENCES as unknown as Record<string, unknown>,
+          preferences: DEFAULT_USER_PREFERENCES as unknown as Prisma.InputJsonValue,
         },
       });
     }
 
     return {
       ...profile,
-      preferences: profile.preferences as UserPreferences,
+      preferences: profile.preferences as unknown as UserPreferences,
       email: ctx.session?.user?.email ?? null,
     };
   }),
@@ -47,13 +48,13 @@ export const userRouter = createTRPCRouter({
         create: {
           userId: ctx.userId,
           ...input,
-          preferences: DEFAULT_USER_PREFERENCES as unknown as Record<string, unknown>,
+          preferences: DEFAULT_USER_PREFERENCES as unknown as Prisma.InputJsonValue,
         },
       });
 
       return {
         ...profile,
-        preferences: profile.preferences as UserPreferences,
+        preferences: profile.preferences as unknown as UserPreferences,
       };
     }),
 
@@ -74,7 +75,7 @@ export const userRouter = createTRPCRouter({
         where: { userId: ctx.userId },
       });
 
-      const currentPreferences = (currentProfile?.preferences ?? DEFAULT_USER_PREFERENCES) as UserPreferences;
+      const currentPreferences = (currentProfile?.preferences ?? DEFAULT_USER_PREFERENCES) as unknown as UserPreferences;
 
       const newPreferences: UserPreferences = {
         ...currentPreferences,
@@ -84,17 +85,17 @@ export const userRouter = createTRPCRouter({
       const profile = await ctx.prisma.userProfile.upsert({
         where: { userId: ctx.userId },
         update: {
-          preferences: newPreferences as unknown as Record<string, unknown>,
+          preferences: newPreferences as unknown as Prisma.InputJsonValue,
         },
         create: {
           userId: ctx.userId,
-          preferences: newPreferences as unknown as Record<string, unknown>,
+          preferences: newPreferences as unknown as Prisma.InputJsonValue,
         },
       });
 
       return {
         ...profile,
-        preferences: profile.preferences as UserPreferences,
+        preferences: profile.preferences as unknown as UserPreferences,
       };
     }),
 

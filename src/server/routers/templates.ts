@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { Prisma } from '@prisma/client';
 import { createTRPCRouter, protectedProcedure } from '@/server/trpc';
 import { ProjectConfig } from '@/types';
 
@@ -94,7 +95,7 @@ export const templatesRouter = createTRPCRouter({
 
       return {
         ...template,
-        config: template.config as ProjectConfig,
+        config: template.config as unknown as ProjectConfig,
         isOwn: template.userId === ctx.userId,
       };
     }),
@@ -133,7 +134,7 @@ export const templatesRouter = createTRPCRouter({
           userId: ctx.userId,
           name: input.name,
           description: input.description ?? null,
-          config: project.config as Record<string, unknown>,
+          config: project.config as unknown as Prisma.InputJsonValue,
           thumbnailUrl: project.thumbnailUrl,
           category: input.category ?? null,
           isPublic: input.isPublic,
@@ -142,7 +143,7 @@ export const templatesRouter = createTRPCRouter({
 
       return {
         ...template,
-        config: template.config as ProjectConfig,
+        config: template.config as unknown as ProjectConfig,
       };
     }),
 
@@ -182,7 +183,7 @@ export const templatesRouter = createTRPCRouter({
 
       return {
         ...template,
-        config: template.config as ProjectConfig,
+        config: template.config as unknown as ProjectConfig,
       };
     }),
 
@@ -230,6 +231,47 @@ export const templatesRouter = createTRPCRouter({
         count: c._count.category,
       }));
   }),
+
+  // Use a template to create a new project
+  useTemplate: protectedProcedure
+    .input(z.object({ templateId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Get the template
+      const template = await ctx.prisma.template.findFirst({
+        where: {
+          id: input.templateId,
+          OR: [{ userId: ctx.userId }, { isPublic: true }],
+        },
+      });
+
+      if (!template) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Template not found',
+        });
+      }
+
+      // Create a new project from the template
+      const project = await ctx.prisma.project.create({
+        data: {
+          userId: ctx.userId,
+          name: `${template.name} (Copy)`,
+          description: template.description,
+          config: template.config as unknown as Prisma.InputJsonValue,
+          thumbnailUrl: template.thumbnailUrl,
+          duration: 30,
+          isTemplate: false,
+        },
+      });
+
+      // Increment template usage count
+      await ctx.prisma.template.update({
+        where: { id: input.templateId },
+        data: { usageCount: { increment: 1 } },
+      });
+
+      return project;
+    }),
 
   // Get popular templates
   popular: protectedProcedure

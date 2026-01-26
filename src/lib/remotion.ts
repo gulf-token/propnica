@@ -12,9 +12,9 @@ import { ProjectConfig, RESOLUTION_PRESETS, ResolutionPreset } from '@/types';
 
 const REMOTION_CONFIG = {
   region: (process.env.REMOTION_AWS_REGION || 'eu-west-1') as AwsRegion,
-  functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME || 'remotion-render-propertyclips',
+  functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME || 'remotion-render-propnica',
   serveUrl: process.env.REMOTION_SERVE_URL || '',
-  outBucket: process.env.REMOTION_S3_BUCKET || 'propertyclips-renders',
+  outBucket: process.env.REMOTION_S3_BUCKET || 'propnica-renders',
 };
 
 // ===========================================
@@ -32,7 +32,7 @@ export async function renderVideo(params: RenderVideoParams): Promise<void> {
   const { renderId, projectId, config, resolution } = params;
 
   const resolutionConfig = RESOLUTION_PRESETS[resolution];
-  const projectConfig = config as ProjectConfig;
+  const projectConfig = config as unknown as ProjectConfig;
 
   try {
     // Update status to processing
@@ -54,7 +54,7 @@ export async function renderVideo(params: RenderVideoParams): Promise<void> {
       region: REMOTION_CONFIG.region,
       functionName: REMOTION_CONFIG.functionName,
       serveUrl: REMOTION_CONFIG.serveUrl,
-      composition: 'PropertyShowcase',
+      composition: 'PropertyClip',
       inputProps: {
         config: projectConfig,
       },
@@ -66,7 +66,7 @@ export async function renderVideo(params: RenderVideoParams): Promise<void> {
       outName: `${projectId}/${renderId}.mp4`,
       downloadBehavior: {
         type: 'download',
-        fileName: `propertyclips-${renderId}.mp4`,
+        fileName: `propnica-${renderId}.mp4`,
       },
       // Resolution settings
       ...(resolution !== '1080p' && {

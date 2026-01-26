@@ -34,12 +34,13 @@ import {
 export default function RendersPage() {
   // Fetch renders
   const {
-    data: renders,
+    data: rendersData,
     isLoading,
     refetch,
   } = trpc.renders.list.useQuery({
     limit: 50,
   });
+  const renders = rendersData?.items;
 
   // Delete mutation
   const deleteRender = trpc.renders.delete.useMutation({
@@ -56,9 +57,9 @@ export default function RendersPage() {
 
   // Group renders by status
   const inProgress = renders?.filter(
-    (r) => r.status === 'PENDING' || r.status === 'PROCESSING'
+    (r) => r.status === 'QUEUED' || r.status === 'PROCESSING'
   );
-  const completed = renders?.filter((r) => r.status === 'COMPLETED');
+  const completed = renders?.filter((r) => r.status === 'COMPLETE');
   const failed = renders?.filter((r) => r.status === 'FAILED');
 
   return (
@@ -171,39 +172,39 @@ interface RenderCardProps {
   render: {
     id: string;
     status: string;
-    progress: number | null;
+    progress: number;
     resolution: string;
-    format: string;
+    format?: string;
     outputUrl: string | null;
     errorMessage: string | null;
     fileSize: number | null;
-    duration: number | null;
+    duration?: number | null;
     createdAt: Date;
     completedAt: Date | null;
     project: {
       id: string;
       name: string;
-    } | null;
+    };
   };
   onDelete: () => void;
 }
 
 function RenderCard({ render, onDelete }: RenderCardProps) {
   const statusColors: Record<string, string> = {
-    PENDING: 'bg-yellow-500',
+    QUEUED: 'bg-yellow-500',
     PROCESSING: 'bg-blue-500',
-    COMPLETED: 'bg-green-500',
+    COMPLETE: 'bg-green-500',
     FAILED: 'bg-red-500',
   };
 
   const statusLabels: Record<string, string> = {
-    PENDING: 'Queued',
+    QUEUED: 'Queued',
     PROCESSING: 'Rendering',
-    COMPLETED: 'Complete',
+    COMPLETE: 'Complete',
     FAILED: 'Failed',
   };
 
-  const isProcessing = render.status === 'PENDING' || render.status === 'PROCESSING';
+  const isProcessing = render.status === 'QUEUED' || render.status === 'PROCESSING';
 
   return (
     <Card>
@@ -215,7 +216,7 @@ function RenderCard({ render, onDelete }: RenderCardProps) {
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             ) : render.status === 'FAILED' ? (
               <AlertCircle className="w-6 h-6 text-destructive" />
-            ) : render.status === 'COMPLETED' && render.outputUrl ? (
+            ) : render.status === 'COMPLETE' && render.outputUrl ? (
               <Play className="w-6 h-6 text-green-500" />
             ) : (
               <Clock className="w-6 h-6 text-muted-foreground" />
@@ -232,7 +233,7 @@ function RenderCard({ render, onDelete }: RenderCardProps) {
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                   <span
                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                      render.status === 'COMPLETED'
+                      render.status === 'COMPLETE'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                         : render.status === 'FAILED'
                         ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
@@ -245,7 +246,7 @@ function RenderCard({ render, onDelete }: RenderCardProps) {
                     {statusLabels[render.status]}
                   </span>
                   <span>{render.resolution}</span>
-                  <span>{render.format.toUpperCase()}</span>
+                  {render.format && <span>{render.format.toUpperCase()}</span>}
                   {render.fileSize && (
                     <span>{formatFileSize(render.fileSize)}</span>
                   )}
@@ -320,7 +321,7 @@ function RenderCard({ render, onDelete }: RenderCardProps) {
           </div>
 
           {/* Download Button */}
-          {render.status === 'COMPLETED' && render.outputUrl && (
+          {render.status === 'COMPLETE' && render.outputUrl && (
             <Button asChild size="sm" className="shrink-0">
               <a
                 href={render.outputUrl}

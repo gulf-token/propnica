@@ -3,6 +3,7 @@ import { projectsRouter } from './routers/projects';
 import { rendersRouter } from './routers/renders';
 import { templatesRouter } from './routers/templates';
 import { userRouter } from './routers/user';
+import { libraryRouter } from './routers/library';
 
 // ===========================================
 // Main App Router
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   renders: rendersRouter,
   templates: templatesRouter,
   user: userRouter,
+  library: libraryRouter,
 });
 
 // ===========================================

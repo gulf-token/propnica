@@ -24,9 +24,9 @@ const s3Client = new S3Client({
 // ===========================================
 
 const BUCKETS = {
-  renders: process.env.S3_RENDERS_BUCKET || 'propertyclips-renders',
-  assets: process.env.S3_ASSETS_BUCKET || 'propertyclips-assets',
-  thumbnails: process.env.S3_THUMBNAILS_BUCKET || 'propertyclips-thumbnails',
+  renders: process.env.S3_RENDERS_BUCKET || 'propnica-renders',
+  assets: process.env.S3_ASSETS_BUCKET || 'propnica-assets',
+  thumbnails: process.env.S3_THUMBNAILS_BUCKET || 'propnica-thumbnails',
 };
 
 // ===========================================

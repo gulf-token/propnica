@@ -20,21 +20,21 @@
 # ===========================================
 
 resource "aws_ssm_parameter" "remotion_function_name" {
-  name        = "/propertyclips/${var.environment}/remotion/function-name"
+  name        = "/propnica/${var.environment}/remotion/function-name"
   description = "Name of the Remotion Lambda function"
   type        = "String"
   value       = "remotion-render-${var.environment}"
 }
 
 resource "aws_ssm_parameter" "remotion_region" {
-  name        = "/propertyclips/${var.environment}/remotion/region"
+  name        = "/propnica/${var.environment}/remotion/region"
   description = "AWS region for Remotion Lambda"
   type        = "String"
   value       = var.aws_region
 }
 
 resource "aws_ssm_parameter" "remotion_serve_url" {
-  name        = "/propertyclips/${var.environment}/remotion/serve-url"
+  name        = "/propnica/${var.environment}/remotion/serve-url"
   description = "Remotion serve URL for the deployed site"
   type        = "String"
   value       = "placeholder" # Updated after deployment
@@ -72,7 +72,7 @@ resource "aws_cloudwatch_log_group" "remotion_lambda" {
 # ===========================================
 
 resource "aws_iam_policy" "invoke_remotion" {
-  name        = "propertyclips-invoke-remotion-${var.environment}"
+  name        = "propnica-invoke-remotion-${var.environment}"
   description = "Allow invoking the Remotion Lambda function"
 
   policy = jsonencode({
@@ -102,7 +102,7 @@ resource "aws_iam_policy" "invoke_remotion" {
 # ===========================================
 
 resource "aws_iam_user" "app_user" {
-  name = "propertyclips-app-${var.environment}"
+  name = "propnica-app-${var.environment}"
 }
 
 resource "aws_iam_user_policy_attachment" "app_user_invoke_remotion" {
@@ -111,7 +111,7 @@ resource "aws_iam_user_policy_attachment" "app_user_invoke_remotion" {
 }
 
 resource "aws_iam_user_policy" "app_user_s3" {
-  name = "propertyclips-app-s3-${var.environment}"
+  name = "propnica-app-s3-${var.environment}"
   user = aws_iam_user.app_user.name
 
   policy = jsonencode({

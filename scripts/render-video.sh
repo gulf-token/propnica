@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# PropertyClips Video Generator
+# Propnica Video Generator
 # Generate professional property showcase videos from configuration files
 #
 # Usage:
@@ -40,7 +40,7 @@ OUTPUT_FILE="${2:-$DEFAULT_OUTPUT}"
 
 echo ""
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  PropertyClips Video Generator${NC}"
+echo -e "${BLUE}  Propnica Video Generator${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 

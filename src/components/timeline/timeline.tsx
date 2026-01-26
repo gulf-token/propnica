@@ -141,11 +141,11 @@ function KeyframeItem({
         e.stopPropagation();
         onSelect();
       }}
-      title={keyframe.label || `Keyframe at ${formatTime(keyframe.time)}`}
+      title={keyframe.name || `Keyframe at ${formatTime(keyframe.time)}`}
     >
       <div className="px-1.5 h-full flex items-center">
         <span className="text-[10px] text-primary-foreground truncate">
-          {keyframe.label || formatTime(keyframe.time)}
+          {keyframe.name || formatTime(keyframe.time)}
         </span>
       </div>
     </div>
@@ -256,7 +256,7 @@ function TransportControls() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={seekBackward}
+              onClick={() => seekBackward()}
             >
               <SkipBack className="h-3 w-3" />
             </Button>
@@ -288,7 +288,7 @@ function TransportControls() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={seekForward}
+              onClick={() => seekForward()}
             >
               <SkipForward className="h-3 w-3" />
             </Button>
@@ -356,18 +356,17 @@ export function Timeline() {
   };
 
   // Add new keyframe
-  const handleAddKeyframe = (time: number) => {
-    addKeyframe({
-      time,
-      duration: 3,
-      easing: 'easeInOutCubic',
-      camera: config?.mapSettings ?? {
-        centre: [55.2708, 25.2048],
-        zoom: 14,
-        bearing: 0,
-        pitch: 45,
-      },
-    });
+  const handleAddKeyframe = (_time: number) => {
+    // Use camera from last keyframe or default
+    const lastKeyframe = keyframes[keyframes.length - 1];
+    const camera = lastKeyframe?.camera ?? {
+      centre: [55.2708, 25.2048] as [number, number],
+      zoom: 14,
+      bearing: 0,
+      pitch: 45,
+    };
+
+    addKeyframe(camera);
   };
 
   // Select keyframe
@@ -457,8 +456,25 @@ export function Timeline() {
           {/* Track Labels */}
           <div className="w-32 shrink-0 border-r">
             <div className="h-6 bg-muted/30" />
-            <div className="h-8 flex items-center px-2 border-b">
+            <div className="h-8 flex items-center justify-between px-2 border-b">
               <span className="text-xs font-medium">Camera</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => handleAddKeyframe(currentTime)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>Add keyframe at playhead</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-# PropertyClips
+# Propnica
 
 A cloud-based SaaS platform for creating cinematic property showcase videos with map-based animations, designed specifically for UAE real estate professionals.
 
@@ -39,8 +39,8 @@ A cloud-based SaaS platform for creating cinematic property showcase videos with
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/propertyclips.git
-   cd propertyclips
+   git clone https://github.com/yourusername/propnica.git
+   cd propnica
    ```
 
 2. Install dependencies:
@@ -111,7 +111,7 @@ A cloud-based SaaS platform for creating cinematic property showcase videos with
 ## Project Structure
 
 ```
-propertyclips/
+propnica/
 ├── .github/
 │   └── workflows/         # CI/CD workflows
 ├── e2e/                   # Playwright E2E tests
@@ -214,8 +214,8 @@ Proprietary - All rights reserved.
 
 ## Support
 
-For support, please contact support@propertyclips.com or visit our documentation.
+For support, please contact support@propnica.com or visit our documentation.
 
 ---
 
-Built with care for the UAE real estate market by Mina Prime Properties.
+Built with care for the UAE real estate market.
