@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Clock, Star, Loader2 } from 'lucide-react';
+import { Search, Clock, Star, Loader2, Sparkles } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import {
   Button,
@@ -14,6 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui';
+import { AIProjectGenerator } from '@/components/ai/ai-project-generator';
 
 // ===========================================
 // Templates Page
@@ -34,6 +35,7 @@ export default function TemplatesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
+  const [showAIGenerator, setShowAIGenerator] = React.useState(false);
 
   // Fetch templates
   const { data: templatesData, isLoading } = trpc.templates.list.useQuery({
@@ -81,6 +83,32 @@ export default function TemplatesPage() {
           Start with a pre-built template to save time
         </p>
       </div>
+
+      {/* AI Generator Card */}
+      <Card className="mb-8 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border-violet-500/20">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Start with AI</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Describe your property video in natural language and let AI generate the animation timeline for you
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowAIGenerator(true)}
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shrink-0"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate with AI
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -181,6 +209,12 @@ export default function TemplatesPage() {
           </div>
         )}
       </div>
+
+      {/* AI Project Generator Modal */}
+      <AIProjectGenerator
+        open={showAIGenerator}
+        onOpenChange={setShowAIGenerator}
+      />
     </div>
   );
 }

@@ -1,18 +1,43 @@
-// @ts-nocheck
+/**
+ * MarkerRenderer Component
+ *
+ * Renders animated text markers with entry/exit animations.
+ * Used in Remotion compositions to display labels and markers on the map.
+ */
+
 import React from 'react';
-import { interpolate, spring } from 'remotion';
-import type { TextMarker, ElementTiming, TextMarkerAnimationConfig, TextEntryAnimation, ExitAnimationType, AnimationEasing } from '../../src/types';
+import type {
+  TextMarker,
+  ElementTiming,
+  TextEntryAnimation,
+  ExitAnimationType,
+  AnimationEasing,
+} from '../../src/types';
+import { ViewState, projectToScreen } from '../utils/projection';
+import { applyEasing } from '../utils/easing';
+
+/**
+ * Simple linear interpolation between two values
+ */
+function interpolate(
+  value: number,
+  inputRange: [number, number],
+  outputRange: [number, number]
+): number {
+  const [inputMin, inputMax] = inputRange;
+  const [outputMin, outputMax] = outputRange;
+
+  // Clamp value to input range
+  const clampedValue = Math.max(inputMin, Math.min(inputMax, value));
+
+  // Calculate interpolation
+  const ratio = (clampedValue - inputMin) / (inputMax - inputMin);
+  return outputMin + ratio * (outputMax - outputMin);
+}
 
 // ===========================================
 // Types
 // ===========================================
-
-interface ViewState {
-  center: [number, number];
-  zoom: number;
-  pitch: number;
-  bearing: number;
-}
 
 interface MarkerRendererProps {
   markers: TextMarker[];
@@ -24,46 +49,6 @@ interface MarkerRendererProps {
   currentTimeMs?: number;
 }
 
-// ===========================================
-// Easing Functions
-// ===========================================
-
-const easingFunctions: Record<AnimationEasing, (t: number) => number> = {
-  linear: (t) => t,
-  easeIn: (t) => t * t,
-  easeOut: (t) => 1 - Math.pow(1 - t, 2),
-  easeInOut: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
-  easeInCubic: (t) => t * t * t,
-  easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
-  easeInOutCubic: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
-  easeOutBack: (t) => {
-    const c1 = 1.70158;
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  },
-  easeOutElastic: (t) => {
-    const c4 = (2 * Math.PI) / 3;
-    return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-  },
-  easeOutBounce: (t) => {
-    const n1 = 7.5625;
-    const d1 = 2.75;
-    if (t < 1 / d1) return n1 * t * t;
-    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
-    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
-    return n1 * (t -= 2.625 / d1) * t + 0.984375;
-  },
-};
-
-function applyEasing(progress: number, easing: AnimationEasing = 'easeOutCubic'): number {
-  const fn = easingFunctions[easing] || easingFunctions.easeOutCubic;
-  return fn(Math.max(0, Math.min(1, progress)));
-}
-
-// ===========================================
-// Animation Calculation Functions
-// ===========================================
-
 interface AnimationState {
   opacity: number;
   scale: number;
@@ -74,11 +59,22 @@ interface AnimationState {
   clipPath?: string;
 }
 
+interface MarkerIconProps {
+  marker: TextMarker;
+  x: number;
+  y: number;
+  scale?: number;
+}
+
+// ===========================================
+// Animation Calculation Functions
+// ===========================================
+
 function calculateEntryAnimation(
   entryType: TextEntryAnimation,
   progress: number,
   easing: AnimationEasing,
-  textLength: number = 0,
+  textLength: number = 0
 ): AnimationState {
   const easedProgress = applyEasing(progress, easing);
 
@@ -132,10 +128,11 @@ function calculateEntryAnimation(
     case 'typewriter':
       // Typewriter reveals characters progressively
       const charCount = Math.floor(textLength * easedProgress);
+      const clipPercentage = textLength > 0 ? (charCount / textLength) * 100 : 100;
       return {
         ...baseState,
         opacity: 1,
-        clipPath: `inset(0 ${100 - (charCount / textLength) * 100}% 0 0)`,
+        clipPath: `inset(0 ${100 - clipPercentage}% 0 0)`,
       };
 
     case 'wordByWord':
@@ -143,7 +140,6 @@ function calculateEntryAnimation(
       return {
         ...baseState,
         opacity: easedProgress,
-        // This will be handled separately in the component
       };
 
     default:
@@ -154,7 +150,7 @@ function calculateEntryAnimation(
 function calculateExitAnimation(
   exitType: ExitAnimationType,
   progress: number, // 0 = start of exit, 1 = fully exited
-  easing: AnimationEasing,
+  easing: AnimationEasing
 ): AnimationState {
   const easedProgress = applyEasing(progress, easing);
   const invertedProgress = 1 - easedProgress;
@@ -209,122 +205,8 @@ function calculateExitAnimation(
 }
 
 // ===========================================
-// Utility Functions
-// ===========================================
-
-/**
- * Calculate element opacity based on timing configuration
- */
-function calculateElementOpacity(timing: ElementTiming, currentTimeMs: number): number {
-  const { startTime, endTime, fadeInDuration, fadeOutDuration } = timing;
-
-  // Convert seconds to milliseconds if needed (timing uses seconds)
-  const startMs = startTime * 1000;
-  const endMs = endTime * 1000;
-  const fadeInMs = fadeInDuration * 1000;
-  const fadeOutMs = fadeOutDuration * 1000;
-
-  // Before element should appear
-  if (currentTimeMs < startMs) {
-    return 0;
-  }
-
-  // During fade in
-  if (currentTimeMs < startMs + fadeInMs) {
-    return (currentTimeMs - startMs) / fadeInMs;
-  }
-
-  // During fade out
-  if (currentTimeMs > endMs - fadeOutMs && currentTimeMs <= endMs) {
-    return Math.max(0, (endMs - currentTimeMs) / fadeOutMs);
-  }
-
-  // After element should disappear
-  if (currentTimeMs > endMs) {
-    return 0;
-  }
-
-  // Fully visible
-  return 1;
-}
-
-// ===========================================
-// Coordinate Projection
-// ===========================================
-
-/**
- * Converts geographic coordinates to screen position
- * This is a simplified Web Mercator projection
- */
-function projectToScreen(
-  position: [number, number],
-  viewState: ViewState,
-  width: number,
-  height: number
-): { x: number; y: number; visible: boolean } {
-  const { center, zoom, bearing } = viewState;
-
-  // Scale factor based on zoom level
-  const scale = Math.pow(2, zoom) * 256;
-
-  // Convert to Web Mercator
-  const toMercator = (lng: number, lat: number) => {
-    const x = ((lng + 180) / 360) * scale;
-    const y =
-      ((1 -
-        Math.log(
-          Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
-        ) /
-          Math.PI) /
-        2) *
-      scale;
-    return { x, y };
-  };
-
-  // Get center and marker positions in Mercator
-  const centerMerc = toMercator(center[0], center[1]);
-  const markerMerc = toMercator(position[0], position[1]);
-
-  // Calculate offset from center
-  let offsetX = markerMerc.x - centerMerc.x;
-  let offsetY = markerMerc.y - centerMerc.y;
-
-  // Apply bearing rotation
-  if (bearing !== 0) {
-    const bearingRad = (bearing * Math.PI) / 180;
-    const cos = Math.cos(bearingRad);
-    const sin = Math.sin(bearingRad);
-    const rotatedX = offsetX * cos - offsetY * sin;
-    const rotatedY = offsetX * sin + offsetY * cos;
-    offsetX = rotatedX;
-    offsetY = rotatedY;
-  }
-
-  // Convert to screen coordinates
-  const screenX = width / 2 + offsetX;
-  const screenY = height / 2 + offsetY;
-
-  // Check if marker is visible on screen (with some padding)
-  const padding = 100;
-  const visible =
-    screenX > -padding &&
-    screenX < width + padding &&
-    screenY > -padding &&
-    screenY < height + padding;
-
-  return { x: screenX, y: screenY, visible };
-}
-
-// ===========================================
 // Marker Icon Component
 // ===========================================
-
-interface MarkerIconProps {
-  marker: TextMarker;
-  x: number;
-  y: number;
-  scale?: number;
-}
 
 const MarkerIconComponent: React.FC<MarkerIconProps> = ({
   marker,
@@ -334,7 +216,7 @@ const MarkerIconComponent: React.FC<MarkerIconProps> = ({
 }) => {
   // Get size from icon config or use default
   const size = marker.icon?.size ?? 24;
-  const colour = marker.icon?.colour ?? marker.style.fontColour ?? '#ef4444';
+  const colour = marker.icon?.colour ?? marker.style?.fontColour ?? '#ef4444';
   const iconType = marker.icon?.type ?? 'pin';
 
   // Custom icon URL (if type looks like a URL)
@@ -404,14 +286,14 @@ const MarkerIconComponent: React.FC<MarkerIconProps> = ({
             transform: 'translateX(-50%)',
             whiteSpace: 'nowrap',
             backgroundColor:
-              marker.style.backgroundColour ?? 'rgba(0, 0, 0, 0.75)',
-            opacity: marker.style.backgroundOpacity ?? 1,
-            color: marker.style.fontColour ?? 'white',
-            padding: marker.style.padding ?? 4,
-            borderRadius: marker.style.borderRadius ?? 4,
-            fontSize: marker.style.fontSize ?? 12,
-            fontFamily: marker.style.fontFamily ?? 'Inter, system-ui, sans-serif',
-            fontWeight: marker.style.fontWeight ?? 'normal',
+              marker.style?.backgroundColour ?? 'rgba(0, 0, 0, 0.75)',
+            opacity: marker.style?.backgroundOpacity ?? 1,
+            color: marker.style?.fontColour ?? 'white',
+            padding: marker.style?.padding ?? 4,
+            borderRadius: marker.style?.borderRadius ?? 4,
+            fontSize: marker.style?.fontSize ?? 12,
+            fontFamily: marker.style?.fontFamily ?? 'Inter, system-ui, sans-serif',
+            fontWeight: marker.style?.fontWeight ?? 'normal',
           }}
         >
           {marker.text}
@@ -449,9 +331,13 @@ export const MarkerRenderer: React.FC<MarkerRendererProps> = ({
         pointerEvents: 'none',
       }}
     >
-      {markers.map((marker, index) => {
+      {markers.map((marker) => {
+        // Skip markers without timing
+        if (!marker.timing) return null;
+
         // Get timing configuration
-        const { startTime, endTime, fadeInDuration, fadeOutDuration } = marker.timing;
+        const { startTime, endTime, fadeInDuration, fadeOutDuration } =
+          marker.timing;
         const startMs = startTime * 1000;
         const endMs = endTime * 1000;
         const fadeInMs = fadeInDuration * 1000;
@@ -468,27 +354,46 @@ export const MarkerRenderer: React.FC<MarkerRendererProps> = ({
           height
         );
 
-        if (!screenPosition.visible) return null;
+        // Check if marker is visible on screen (with padding)
+        const padding = 100;
+        const isVisible =
+          screenPosition.x > -padding &&
+          screenPosition.x < width + padding &&
+          screenPosition.y > -padding &&
+          screenPosition.y < height + padding;
+
+        if (!isVisible) return null;
 
         // Get animation config with defaults
         const animConfig = marker.animationConfig;
-        const entryType = animConfig?.entryAnimation ?? 'fadeIn';
+        const entryType: TextEntryAnimation =
+          animConfig?.entryAnimation ?? 'fadeIn';
         const entryDuration = (animConfig?.entryDuration ?? 0.5) * 1000;
-        const entryEasing = animConfig?.entryEasing ?? 'easeOutCubic';
-        const exitType = animConfig?.exitType ?? 'fadeOut';
+        const entryEasing: AnimationEasing =
+          animConfig?.entryEasing ?? 'easeOutCubic';
+        const exitType: ExitAnimationType = animConfig?.exitType ?? 'fadeOut';
         const exitDuration = (animConfig?.exitDuration ?? 0.5) * 1000;
-        const exitEasing = animConfig?.exitEasing ?? 'easeInCubic';
+        const exitEasing: AnimationEasing =
+          animConfig?.exitEasing ?? 'easeInCubic';
 
         // Calculate animation state based on timing
         let animState: AnimationState;
 
-        if (timeMs < startMs + entryDuration) {
-          // Entry animation phase
+        if (entryDuration > 0 && timeMs < startMs + entryDuration) {
+          // Entry animation phase (with division by zero protection)
           const entryProgress = Math.min(1, (timeMs - startMs) / entryDuration);
-          animState = calculateEntryAnimation(entryType, entryProgress, entryEasing, marker.text.length);
-        } else if (timeMs > endMs - exitDuration) {
-          // Exit animation phase
-          const exitProgress = Math.min(1, (timeMs - (endMs - exitDuration)) / exitDuration);
+          animState = calculateEntryAnimation(
+            entryType,
+            entryProgress,
+            entryEasing,
+            marker.text?.length ?? 0
+          );
+        } else if (exitDuration > 0 && timeMs > endMs - exitDuration) {
+          // Exit animation phase (with division by zero protection)
+          const exitProgress = Math.min(
+            1,
+            (timeMs - (endMs - exitDuration)) / exitDuration
+          );
           animState = calculateExitAnimation(exitType, exitProgress, exitEasing);
         } else {
           // Fully visible phase
@@ -504,13 +409,18 @@ export const MarkerRenderer: React.FC<MarkerRendererProps> = ({
 
         // Construct transform string
         const transforms: string[] = [];
-        if (animState.scale !== 1) transforms.push(`scale(${animState.scale})`);
-        if (animState.translateX !== 0) transforms.push(`translateX(${animState.translateX}px)`);
-        if (animState.translateY !== 0) transforms.push(`translateY(${animState.translateY}px)`);
-        if (animState.rotation !== 0) transforms.push(`rotate(${animState.rotation}deg)`);
+        if (animState.scale !== 1)
+          transforms.push(`scale(${animState.scale})`);
+        if (animState.translateX !== 0)
+          transforms.push(`translateX(${animState.translateX}px)`);
+        if (animState.translateY !== 0)
+          transforms.push(`translateY(${animState.translateY}px)`);
+        if (animState.rotation !== 0)
+          transforms.push(`rotate(${animState.rotation}deg)`);
 
         const filterEffects: string[] = [];
-        if (animState.blur > 0) filterEffects.push(`blur(${animState.blur}px)`);
+        if (animState.blur > 0)
+          filterEffects.push(`blur(${animState.blur}px)`);
 
         return (
           <div
@@ -520,8 +430,10 @@ export const MarkerRenderer: React.FC<MarkerRendererProps> = ({
               left: 0,
               top: 0,
               opacity: animState.opacity,
-              transform: transforms.length > 0 ? transforms.join(' ') : undefined,
-              filter: filterEffects.length > 0 ? filterEffects.join(' ') : undefined,
+              transform:
+                transforms.length > 0 ? transforms.join(' ') : undefined,
+              filter:
+                filterEffects.length > 0 ? filterEffects.join(' ') : undefined,
               clipPath: animState.clipPath,
             }}
           >

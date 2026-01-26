@@ -37,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui';
+import { AIProjectGenerator } from '@/components/ai';
 
 // ===========================================
 // Dashboard Page
@@ -44,6 +45,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [showAIGenerator, setShowAIGenerator] = React.useState(false);
 
   // Fetch recent projects
   const { data: projectsData, isLoading: projectsLoading } = trpc.projects.list.useQuery({
@@ -110,19 +112,30 @@ export default function DashboardPage() {
               Create stunning property flyovers in minutes
             </p>
           </div>
-          <Button
-            size="lg"
-            onClick={handleCreateProject}
-            disabled={createProject.isPending}
-            className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg"
-          >
-            {createProject.isPending ? (
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            ) : (
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              onClick={() => setShowAIGenerator(true)}
+              className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg"
+            >
               <Sparkles className="w-5 h-5 mr-2" />
-            )}
-            New Project
-          </Button>
+              AI Generator
+            </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={handleCreateProject}
+              disabled={createProject.isPending}
+              className="bg-white/20 text-white hover:bg-white/30 border-white/30"
+            >
+              {createProject.isPending ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <Plus className="w-5 h-5 mr-2" />
+              )}
+              Blank Project
+            </Button>
+          </div>
         </div>
         {/* Decorative elements */}
         <div className="absolute -right-8 -top-8 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
@@ -308,22 +321,31 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="justify-start h-auto py-3 flex-col items-center gap-1 col-span-2 border-purple-200 bg-purple-50/50 hover:bg-purple-100/50 dark:border-purple-800 dark:bg-purple-950/30"
+                onClick={() => setShowAIGenerator(true)}
+              >
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">AI Project Generator</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="justify-start h-auto py-3 flex-col items-center gap-1"
                 onClick={handleCreateProject}
                 disabled={createProject.isPending}
               >
-                <Plus className="w-5 h-5 text-purple-500" />
-                <span className="text-xs">New Project</span>
+                <Plus className="w-5 h-5 text-blue-500" />
+                <span className="text-xs">Blank Project</span>
               </Button>
               <Link href="/templates" className="block">
                 <Button variant="outline" size="sm" className="w-full justify-start h-auto py-3 flex-col items-center gap-1">
-                  <Layout className="w-5 h-5 text-blue-500" />
+                  <Layout className="w-5 h-5 text-emerald-500" />
                   <span className="text-xs">Templates</span>
                 </Button>
               </Link>
               <Link href="/renders" className="block col-span-2">
                 <Button variant="outline" size="sm" className="w-full justify-start h-auto py-3 flex-col items-center gap-1">
-                  <Film className="w-5 h-5 text-emerald-500" />
+                  <Film className="w-5 h-5 text-rose-500" />
                   <span className="text-xs">View All Renders</span>
                 </Button>
               </Link>
@@ -396,6 +418,15 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* AI Project Generator Dialog */}
+      <AIProjectGenerator
+        open={showAIGenerator}
+        onOpenChange={setShowAIGenerator}
+        onProjectCreated={(projectId) => {
+          router.push(`/editor/${projectId}`);
+        }}
+      />
     </div>
   );
 }

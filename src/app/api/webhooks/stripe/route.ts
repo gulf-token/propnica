@@ -1,8 +1,7 @@
-// @ts-nocheck
-// TODO: This file needs a User model in Prisma schema to work
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
+import { Plan } from '@prisma/client';
 
 // ===========================================
 // Stripe Webhook Handler
@@ -97,9 +96,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Update user with Stripe customer ID
-  await prisma.user.update({
-    where: { id: userId },
+  // Find user profile by Supabase userId
+  const userProfile = await prisma.userProfile.findUnique({
+    where: { userId },
+  });
+
+  if (!userProfile) {
+    console.error(`No user profile found for userId ${userId}`);
+    return;
+  }
+
+  // Update user profile with Stripe customer ID
+  await prisma.userProfile.update({
+    where: { userId },
     data: {
       stripeCustomerId: customerId,
     },
@@ -111,13 +120,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
 
-  // Find user by Stripe customer ID
-  const user = await prisma.user.findFirst({
+  // Find user profile by Stripe customer ID
+  const userProfile = await prisma.userProfile.findFirst({
     where: { stripeCustomerId: customerId },
   });
 
-  if (!user) {
-    console.error(`No user found for customer ${customerId}`);
+  if (!userProfile) {
+    console.error(`No user profile found for customer ${customerId}`);
     return;
   }
 
@@ -125,40 +134,39 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const priceId = subscription.items.data[0]?.price.id;
   const plan = getPlanFromPriceId(priceId);
 
-  // Update user subscription details
-  await prisma.user.update({
-    where: { id: user.id },
+  // Update user profile subscription details
+  await prisma.userProfile.update({
+    where: { id: userProfile.id },
     data: {
       plan,
       stripeSubscriptionId: subscription.id,
-      // Update limits based on plan
       renderMinutesLimit: getPlanRenderMinutes(plan),
       storageLimitMb: getPlanStorageMb(plan),
       projectLimit: getPlanProjectLimit(plan),
     },
   });
 
-  console.log(`Subscription updated for user ${user.id}: ${plan}`);
+  console.log(`Subscription updated for user ${userProfile.userId}: ${plan}`);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
 
-  // Find user by Stripe customer ID
-  const user = await prisma.user.findFirst({
+  // Find user profile by Stripe customer ID
+  const userProfile = await prisma.userProfile.findFirst({
     where: { stripeCustomerId: customerId },
   });
 
-  if (!user) {
-    console.error(`No user found for customer ${customerId}`);
+  if (!userProfile) {
+    console.error(`No user profile found for customer ${customerId}`);
     return;
   }
 
   // Revert to free plan
-  await prisma.user.update({
-    where: { id: user.id },
+  await prisma.userProfile.update({
+    where: { id: userProfile.id },
     data: {
-      plan: 'FREE',
+      plan: Plan.FREE,
       stripeSubscriptionId: null,
       renderMinutesLimit: 60,
       storageLimitMb: 1024,
@@ -166,7 +174,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     },
   });
 
-  console.log(`Subscription cancelled for user ${user.id}`);
+  console.log(`Subscription cancelled for user ${userProfile.userId}`);
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
@@ -181,18 +189,18 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
 
-  // Find user
-  const user = await prisma.user.findFirst({
+  // Find user profile
+  const userProfile = await prisma.userProfile.findFirst({
     where: { stripeCustomerId: customerId },
   });
 
-  if (!user) {
-    console.error(`No user found for customer ${customerId}`);
+  if (!userProfile) {
+    console.error(`No user profile found for customer ${customerId}`);
     return;
   }
 
   // Log failed payment
-  console.error(`Payment failed for user ${user.id}`);
+  console.error(`Payment failed for user ${userProfile.userId}`);
 
   // Could send a notification email here
 }
@@ -201,44 +209,44 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 // Helper Functions
 // ===========================================
 
-function getPlanFromPriceId(priceId: string): string {
-  const priceMap: Record<string, string> = {
-    [process.env.STRIPE_PRICE_STARTER || '']: 'STARTER',
-    [process.env.STRIPE_PRICE_PRO || '']: 'PRO',
-    [process.env.STRIPE_PRICE_BUSINESS || '']: 'BUSINESS',
+function getPlanFromPriceId(priceId: string): Plan {
+  const priceMap: Record<string, Plan> = {
+    [process.env.STRIPE_PRICE_STARTER || '']: Plan.STARTER,
+    [process.env.STRIPE_PRICE_PRO || '']: Plan.PRO,
+    [process.env.STRIPE_PRICE_BUSINESS || '']: Plan.BUSINESS,
   };
 
-  return priceMap[priceId] || 'FREE';
+  return priceMap[priceId] || Plan.FREE;
 }
 
-function getPlanRenderMinutes(plan: string): number {
-  const limits: Record<string, number> = {
-    FREE: 60,
-    STARTER: 300,
-    PRO: 1000,
-    BUSINESS: 5000,
+function getPlanRenderMinutes(plan: Plan): number {
+  const limits: Record<Plan, number> = {
+    [Plan.FREE]: 60,
+    [Plan.STARTER]: 300,
+    [Plan.PRO]: 1000,
+    [Plan.BUSINESS]: 5000,
   };
 
   return limits[plan] || 60;
 }
 
-function getPlanStorageMb(plan: string): number {
-  const limits: Record<string, number> = {
-    FREE: 1024,      // 1 GB
-    STARTER: 5120,   // 5 GB
-    PRO: 20480,      // 20 GB
-    BUSINESS: 102400, // 100 GB
+function getPlanStorageMb(plan: Plan): number {
+  const limits: Record<Plan, number> = {
+    [Plan.FREE]: 1024,      // 1 GB
+    [Plan.STARTER]: 5120,   // 5 GB
+    [Plan.PRO]: 20480,      // 20 GB
+    [Plan.BUSINESS]: 102400, // 100 GB
   };
 
   return limits[plan] || 1024;
 }
 
-function getPlanProjectLimit(plan: string): number {
-  const limits: Record<string, number> = {
-    FREE: 5,
-    STARTER: 25,
-    PRO: 100,
-    BUSINESS: -1, // Unlimited
+function getPlanProjectLimit(plan: Plan): number {
+  const limits: Record<Plan, number> = {
+    [Plan.FREE]: 5,
+    [Plan.STARTER]: 25,
+    [Plan.PRO]: 100,
+    [Plan.BUSINESS]: -1, // Unlimited
   };
 
   return limits[plan] || 5;

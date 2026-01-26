@@ -14,6 +14,7 @@ import { KeyboardShortcutsModal } from '@/components/editor/keyboard-shortcuts-m
 import { SettingsModal } from '@/components/editor/settings-modal';
 import { LibraryPanel } from '@/components/editor/library-panel';
 import { EditorHeaderControls } from '@/components/editor/editor-controls';
+import { AIProjectGenerator } from '@/components/ai/ai-project-generator';
 import {
   Button,
   Tooltip,
@@ -361,6 +362,7 @@ export default function EditorPage() {
   const [renderOpen, setRenderOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [aiOpen, setAiOpen] = React.useState(false);
 
   // Map ref for programmatic control
   const mapRef = React.useRef<MapCanvasRef>(null);
@@ -436,12 +438,19 @@ export default function EditorPage() {
         setShortcutsOpen(true);
       }
 
+      // AI Assistant: A
+      if (e.key === 'a' && !isInputFocused()) {
+        e.preventDefault();
+        setAiOpen(true);
+      }
+
       // Close modals: Escape
       if (e.key === 'Escape') {
         setPreviewOpen(false);
         setRenderOpen(false);
         setShortcutsOpen(false);
         setSettingsOpen(false);
+        setAiOpen(false);
       }
     };
 
@@ -493,6 +502,10 @@ export default function EditorPage() {
 
   const handleOpenSettings = () => {
     setSettingsOpen(true);
+  };
+
+  const handleOpenAI = () => {
+    setAiOpen(true);
   };
 
   const handleFlyToLocation = (coordinates: [number, number]) => {
@@ -555,6 +568,7 @@ export default function EditorPage() {
           onExport={handleExport}
           onOpenShortcuts={handleOpenShortcuts}
           onOpenSettings={handleOpenSettings}
+          onOpenAI={handleOpenAI}
         />
 
         {/* Map Canvas with Aspect Ratio Container */}
@@ -602,6 +616,11 @@ export default function EditorPage() {
       <SettingsModal
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
+      />
+
+      <AIProjectGenerator
+        open={aiOpen}
+        onOpenChange={setAiOpen}
       />
     </div>
   );

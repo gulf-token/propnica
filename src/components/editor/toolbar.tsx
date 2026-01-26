@@ -26,6 +26,7 @@ import {
   Orbit,
   Navigation,
   Archive,
+  Sparkles,
 } from 'lucide-react';
 
 // Custom Zone Icon - polygon with corner points
@@ -151,6 +152,7 @@ interface ToolbarProps {
   onExport: () => void;
   onOpenShortcuts: () => void;
   onOpenSettings: () => void;
+  onOpenAI: () => void;
 }
 
 // ===========================================
@@ -162,6 +164,7 @@ export function Toolbar({
   onExport,
   onOpenShortcuts,
   onOpenSettings,
+  onOpenAI,
 }: ToolbarProps) {
   const selectedTool = useEditorStore((state) => state.selectedTool);
   const setTool = useEditorStore((state) => state.setTool);
@@ -322,6 +325,24 @@ export function Toolbar({
               <div className="flex items-center gap-2">
                 <span>Library</span>
                 <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">L</kbd>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onOpenAI}
+                className="tool-button text-violet-500 hover:text-violet-600"
+                aria-label="AI Assistant"
+              >
+                <Sparkles className="h-5 w-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              <div className="flex items-center gap-2">
+                <span>AI Assistant</span>
+                <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">A</kbd>
               </div>
             </TooltipContent>
           </Tooltip>

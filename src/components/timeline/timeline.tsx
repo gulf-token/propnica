@@ -12,6 +12,8 @@ import {
   ChevronDown,
   Plus,
   Trash2,
+  LayoutList,
+  LayoutPanelTop,
 } from 'lucide-react';
 import { useEditorStore, useProjectStore } from '@/stores';
 import { cn, formatTime } from '@/lib/utils';
@@ -24,6 +26,7 @@ import {
   TooltipProvider,
   ScrollArea,
 } from '@/components/ui';
+import { TimelineTable, TimelineItemType } from '@/components/ai/timeline-table';
 
 // ===========================================
 // Constants
@@ -322,8 +325,11 @@ function TransportControls() {
 // Timeline Component
 // ===========================================
 
+type ViewMode = 'timeline' | 'table';
+
 export function Timeline() {
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [viewMode, setViewMode] = React.useState<ViewMode>('timeline');
 
   const currentTime = useEditorStore((state) => state.currentTime);
   const setCurrentTime = useEditorStore((state) => state.setCurrentTime);
@@ -339,6 +345,9 @@ export function Timeline() {
   const config = useProjectStore((state) => state.config);
   const addKeyframe = useProjectStore((state) => state.addKeyframe);
   const deleteKeyframe = useProjectStore((state) => state.deleteKeyframe);
+  const deleteZone = useProjectStore((state) => state.deleteZone);
+  const deleteRoute = useProjectStore((state) => state.deleteRoute);
+  const deleteTextMarker = useProjectStore((state) => state.deleteTextMarker);
 
   const selectedElement = useEditorStore((state) => state.selectedElement);
   const selectElement = useEditorStore((state) => state.selectElement);
@@ -374,6 +383,29 @@ export function Timeline() {
     selectElement({ type: 'keyframe', id });
   };
 
+  // Handle table item selection
+  const handleTableItemSelect = (id: string, type: TimelineItemType) => {
+    selectElement({ type, id });
+  };
+
+  // Handle table item deletion
+  const handleTableItemDelete = (id: string, type: TimelineItemType) => {
+    switch (type) {
+      case 'keyframe':
+        deleteKeyframe(id);
+        break;
+      case 'zone':
+        deleteZone(id);
+        break;
+      case 'route':
+        deleteRoute(id);
+        break;
+      case 'textMarker':
+        deleteTextMarker(id);
+        break;
+    }
+  };
+
   if (!timelineExpanded) {
     return (
       <div className="h-10 bg-background border-t flex items-center justify-between px-4">
@@ -398,44 +430,88 @@ export function Timeline() {
         <TransportControls />
 
         <div className="flex items-center gap-2">
-          {/* Zoom Controls */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={zoomOut}
-                  disabled={timelineZoom <= MIN_ZOOM}
-                >
-                  <ZoomOut className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom Out</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {/* View Mode Toggle */}
+          <div className="flex items-center border rounded-md overflow-hidden">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setViewMode('timeline')}
+                    className={cn(
+                      'h-7 px-2 flex items-center transition-colors',
+                      viewMode === 'timeline'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 hover:bg-muted'
+                    )}
+                  >
+                    <LayoutPanelTop className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Timeline View</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={cn(
+                      'h-7 px-2 flex items-center transition-colors',
+                      viewMode === 'table'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 hover:bg-muted'
+                    )}
+                  >
+                    <LayoutList className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Table View</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
-          <span className="text-xs text-muted-foreground w-12 text-center">
-            {Math.round(timelineZoom * 100)}%
-          </span>
+          {/* Zoom Controls (only in timeline view) */}
+          {viewMode === 'timeline' && (
+            <>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={zoomOut}
+                      disabled={timelineZoom <= MIN_ZOOM}
+                    >
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Zoom Out</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={zoomIn}
-                  disabled={timelineZoom >= MAX_ZOOM}
-                >
-                  <ZoomIn className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom In</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              <span className="text-xs text-muted-foreground w-12 text-center">
+                {Math.round(timelineZoom * 100)}%
+              </span>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={zoomIn}
+                      disabled={timelineZoom >= MAX_ZOOM}
+                    >
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Zoom In</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </>
+          )}
 
           {/* Collapse */}
           <Button
@@ -452,75 +528,94 @@ export function Timeline() {
 
       {/* Timeline Content */}
       <div className="flex-1 overflow-hidden">
-        <div className="flex h-full">
-          {/* Track Labels */}
-          <div className="w-32 shrink-0 border-r">
-            <div className="h-6 bg-muted/30" />
-            <div className="h-8 flex items-center justify-between px-2 border-b">
-              <span className="text-xs font-medium">Camera</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => handleAddKeyframe(currentTime)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>Add keyframe at playhead</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-
-          {/* Timeline Tracks */}
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-x-auto overflow-y-hidden"
-          >
-            <div style={{ width: duration * pixelsPerSecond }}>
-              {/* Ruler */}
-              <div
-                className="h-6 relative cursor-pointer"
-                onClick={handleRulerClick}
-              >
-                <TimelineRuler
-                  duration={duration}
-                  pixelsPerSecond={pixelsPerSecond}
-                />
-                <Playhead time={currentTime} pixelsPerSecond={pixelsPerSecond} />
+        {viewMode === 'timeline' ? (
+          // Visual Timeline View
+          <div className="flex h-full">
+            {/* Track Labels */}
+            <div className="w-32 shrink-0 border-r">
+              <div className="h-6 bg-muted/30" />
+              <div className="h-8 flex items-center justify-between px-2 border-b">
+                <span className="text-xs font-medium">Camera</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={() => handleAddKeyframe(currentTime)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Add keyframe at playhead</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
+            </div>
 
-              {/* Keyframes Track */}
-              <div className="relative h-8 border-b bg-muted/10">
-                {keyframes.map((keyframe) => (
-                  <KeyframeItem
-                    key={keyframe.id}
-                    keyframe={keyframe}
-                    pixelsPerSecond={pixelsPerSecond}
-                    isSelected={
-                      selectedElement?.type === 'keyframe' &&
-                      selectedElement.id === keyframe.id
-                    }
-                    onSelect={() => handleSelectKeyframe(keyframe.id)}
-                    onDelete={() => deleteKeyframe(keyframe.id)}
-                  />
-                ))}
-
-                {/* Playhead line extending through tracks */}
+            {/* Timeline Tracks */}
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-x-auto overflow-y-hidden"
+            >
+              <div style={{ width: duration * pixelsPerSecond }}>
+                {/* Ruler */}
                 <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
-                  style={{ left: currentTime * pixelsPerSecond }}
-                />
+                  className="h-6 relative cursor-pointer"
+                  onClick={handleRulerClick}
+                >
+                  <TimelineRuler
+                    duration={duration}
+                    pixelsPerSecond={pixelsPerSecond}
+                  />
+                  <Playhead time={currentTime} pixelsPerSecond={pixelsPerSecond} />
+                </div>
+
+                {/* Keyframes Track */}
+                <div className="relative h-8 border-b bg-muted/10">
+                  {keyframes.map((keyframe) => (
+                    <KeyframeItem
+                      key={keyframe.id}
+                      keyframe={keyframe}
+                      pixelsPerSecond={pixelsPerSecond}
+                      isSelected={
+                        selectedElement?.type === 'keyframe' &&
+                        selectedElement.id === keyframe.id
+                      }
+                      onSelect={() => handleSelectKeyframe(keyframe.id)}
+                      onDelete={() => deleteKeyframe(keyframe.id)}
+                    />
+                  ))}
+
+                  {/* Playhead line extending through tracks */}
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
+                    style={{ left: currentTime * pixelsPerSecond }}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          // Table View
+          <div className="h-full overflow-auto">
+            <TimelineTable
+              keyframes={keyframes}
+              zones={config?.zones ?? []}
+              routes={config?.routes ?? []}
+              textMarkers={config?.textMarkers ?? []}
+              totalDuration={duration}
+              onItemSelect={handleTableItemSelect}
+              onItemDelete={handleTableItemDelete}
+              selectedItemId={selectedElement?.id}
+              editable={true}
+              className="min-h-full"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

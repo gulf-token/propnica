@@ -106,13 +106,14 @@ export const projectsRouter = createTRPCRouter({
         name: z.string().min(1).max(200),
         description: z.string().max(1000).optional(),
         templateId: z.string().uuid().optional(),
+        config: projectConfigSchema.optional(), // Optional config for AI-generated projects
       })
     )
     .mutation(async ({ ctx, input }) => {
-      let config: ProjectConfig = DEFAULT_PROJECT_CONFIG;
+      let config: ProjectConfig = input.config as ProjectConfig ?? DEFAULT_PROJECT_CONFIG;
 
-      // If template is provided, copy its config
-      if (input.templateId) {
+      // If template is provided and no config given, copy template's config
+      if (input.templateId && !input.config) {
         const template = await ctx.prisma.template.findFirst({
           where: {
             id: input.templateId,

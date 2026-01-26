@@ -1,17 +1,23 @@
-// @ts-nocheck
+/**
+ * ZoneRenderer Component
+ *
+ * Renders animated polygon zones with fade in/out, scaling, and glow effects.
+ * Used in Remotion compositions to display geographic zones on the map.
+ */
+
 import React from 'react';
 import type { Zone, ElementTiming, AnimationEasing } from '../../src/types';
+import {
+  ViewState,
+  ScreenPoint,
+  projectToScreen,
+  calculatePolygonCentroid,
+} from '../utils/projection';
+import { applyEasing } from '../utils/easing';
 
 // ===========================================
 // Types
 // ===========================================
-
-interface ViewState {
-  center: [number, number];
-  zoom: number;
-  pitch: number;
-  bearing: number;
-}
 
 interface ZoneRendererProps {
   zones: Zone[];
@@ -23,57 +29,43 @@ interface ZoneRendererProps {
   currentTimeMs?: number;
 }
 
-// ===========================================
-// Easing Functions
-// ===========================================
+interface AnimationState {
+  opacity: number;
+  scale: number;
+}
 
-const easingFunctions: Record<AnimationEasing, (t: number) => number> = {
-  linear: (t) => t,
-  easeIn: (t) => t * t,
-  easeOut: (t) => 1 - Math.pow(1 - t, 2),
-  easeInOut: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
-  easeInCubic: (t) => t * t * t,
-  easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
-  easeInOutCubic: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
-  easeOutBack: (t) => {
-    const c1 = 1.70158;
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  },
-  easeOutElastic: (t) => {
-    const c4 = (2 * Math.PI) / 3;
-    return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-  },
-  easeOutBounce: (t) => {
-    const n1 = 7.5625;
-    const d1 = 2.75;
-    if (t < 1 / d1) return n1 * t * t;
-    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
-    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
-    return n1 * (t -= 2.625 / d1) * t + 0.984375;
-  },
-};
-
-function applyEasing(progress: number, easing: AnimationEasing = 'easeOutCubic'): number {
-  const fn = easingFunctions[easing] || easingFunctions.easeOutCubic;
-  return fn(Math.max(0, Math.min(1, progress)));
+interface AnimatedZoneProps {
+  zone: Zone;
+  viewState: ViewState;
+  width: number;
+  height: number;
+  animState: AnimationState;
 }
 
 // ===========================================
 // Animation Calculation
 // ===========================================
 
-interface AnimationState {
-  opacity: number;
-  scale: number;
-}
-
+/**
+ * Calculate zone animation state based on timing configuration
+ *
+ * @param timing - Element timing configuration
+ * @param currentTimeMs - Current time in milliseconds
+ * @param entryEasing - Easing function for fade in
+ * @param exitEasing - Easing function for fade out
+ * @returns Animation state with opacity and scale
+ */
 function calculateZoneAnimation(
-  timing: ElementTiming,
+  timing: ElementTiming | undefined,
   currentTimeMs: number,
   entryEasing: AnimationEasing = 'easeOutCubic',
   exitEasing: AnimationEasing = 'easeInCubic'
 ): AnimationState {
+  // Default timing if not provided
+  if (!timing) {
+    return { opacity: 1, scale: 1 };
+  }
+
   const { startTime, endTime, fadeInDuration, fadeOutDuration } = timing;
 
   // Convert seconds to milliseconds (timing uses seconds)
@@ -87,8 +79,8 @@ function calculateZoneAnimation(
     return { opacity: 0, scale: 0.8 };
   }
 
-  // During fade in
-  if (currentTimeMs < startMs + fadeInMs) {
+  // During fade in (with division by zero protection)
+  if (fadeInMs > 0 && currentTimeMs < startMs + fadeInMs) {
     const progress = (currentTimeMs - startMs) / fadeInMs;
     const easedProgress = applyEasing(progress, entryEasing);
     return {
@@ -97,8 +89,8 @@ function calculateZoneAnimation(
     };
   }
 
-  // During fade out
-  if (currentTimeMs > endMs - fadeOutMs && currentTimeMs <= endMs) {
+  // During fade out (with division by zero protection)
+  if (fadeOutMs > 0 && currentTimeMs > endMs - fadeOutMs && currentTimeMs <= endMs) {
     const progress = (currentTimeMs - (endMs - fadeOutMs)) / fadeOutMs;
     const easedProgress = applyEasing(progress, exitEasing);
     return {
@@ -117,58 +109,12 @@ function calculateZoneAnimation(
 }
 
 // ===========================================
-// Coordinate Projection
+// Path Generation
 // ===========================================
 
-function projectToScreen(
-  coordinates: [number, number],
-  viewState: ViewState,
-  width: number,
-  height: number
-): { x: number; y: number } {
-  const { center, zoom, bearing } = viewState;
-
-  const scale = Math.pow(2, zoom) * 256;
-
-  const toMercator = (lng: number, lat: number) => {
-    const x = ((lng + 180) / 360) * scale;
-    const y =
-      ((1 -
-        Math.log(
-          Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
-        ) /
-          Math.PI) /
-        2) *
-      scale;
-    return { x, y };
-  };
-
-  const centerMerc = toMercator(center[0], center[1]);
-  const pointMerc = toMercator(coordinates[0], coordinates[1]);
-
-  let offsetX = pointMerc.x - centerMerc.x;
-  let offsetY = pointMerc.y - centerMerc.y;
-
-  if (bearing !== 0) {
-    const bearingRad = (bearing * Math.PI) / 180;
-    const cos = Math.cos(bearingRad);
-    const sin = Math.sin(bearingRad);
-    const rotatedX = offsetX * cos - offsetY * sin;
-    const rotatedY = offsetX * sin + offsetY * cos;
-    offsetX = rotatedX;
-    offsetY = rotatedY;
-  }
-
-  return {
-    x: width / 2 + offsetX,
-    y: height / 2 + offsetY,
-  };
-}
-
-// ===========================================
-// Path Utilities
-// ===========================================
-
+/**
+ * Generate SVG polygon path from coordinates
+ */
 function generatePolygonPath(
   coordinates: [number, number][],
   viewState: ViewState,
@@ -183,9 +129,9 @@ function generatePolygonPath(
 
   const pathCommands = points.map((point, index) => {
     if (index === 0) {
-      return `M ${point.x} ${point.y}`;
+      return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     }
-    return `L ${point.x} ${point.y}`;
+    return `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   });
 
   // Close the polygon
@@ -194,36 +140,9 @@ function generatePolygonPath(
   return pathCommands.join(' ');
 }
 
-function calculatePolygonCentroid(
-  coordinates: [number, number][],
-  viewState: ViewState,
-  width: number,
-  height: number
-): { x: number; y: number } {
-  const points = coordinates.map((coord) =>
-    projectToScreen(coord, viewState, width, height)
-  );
-
-  const sumX = points.reduce((acc, p) => acc + p.x, 0);
-  const sumY = points.reduce((acc, p) => acc + p.y, 0);
-
-  return {
-    x: sumX / points.length,
-    y: sumY / points.length,
-  };
-}
-
 // ===========================================
 // Animated Zone Component
 // ===========================================
-
-interface AnimatedZoneProps {
-  zone: Zone;
-  viewState: ViewState;
-  width: number;
-  height: number;
-  animState: AnimationState;
-}
 
 const AnimatedZone: React.FC<AnimatedZoneProps> = ({
   zone,
@@ -237,12 +156,12 @@ const AnimatedZone: React.FC<AnimatedZoneProps> = ({
   const pathD = generatePolygonPath(zone.coordinates, viewState, width, height);
   const centroid = calculatePolygonCentroid(zone.coordinates, viewState, width, height);
 
-  // Access style properties
-  const fillColour = zone.style.fillColour ?? '#3b82f6';
-  const fillOpacity = zone.style.fillOpacity ?? 0.3;
-  const strokeColour = zone.style.strokeColour ?? '#2563eb';
-  const strokeWidth = zone.style.strokeWidth ?? 2;
-  const strokeOpacity = zone.style.strokeOpacity ?? 1;
+  // Access style properties with defaults
+  const fillColour = zone.style?.fillColour ?? '#3b82f6';
+  const fillOpacity = zone.style?.fillOpacity ?? 0.3;
+  const strokeColour = zone.style?.strokeColour ?? '#2563eb';
+  const strokeWidth = zone.style?.strokeWidth ?? 2;
+  const strokeOpacity = zone.style?.strokeOpacity ?? 1;
 
   // Combine style opacity with animation opacity
   const finalFillOpacity = fillOpacity * animState.opacity;

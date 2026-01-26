@@ -24,6 +24,14 @@ model UserProfile {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Subscription fields
+  stripeCustomerId     String?  @unique @map("stripe_customer_id") @db.VarChar(100)
+  stripeSubscriptionId String?  @map("stripe_subscription_id") @db.VarChar(100)
+  plan                 Plan     @default(FREE)
+  renderMinutesLimit   Int      @default(60) @map("render_minutes_limit")
+  storageLimitMb       Int      @default(1024) @map("storage_limit_mb")
+  projectLimit         Int      @default(5) @map("project_limit")
+
   // Relations
   projects     Project[]
   renders      Render[]
@@ -157,4 +165,11 @@ enum Resolution {
   HD_720P
   HD_1080P
   UHD_4K
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
 }
