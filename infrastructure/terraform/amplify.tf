@@ -69,18 +69,8 @@ resource "aws_amplify_app" "main" {
     _CUSTOM_IMAGE       = "amplify:al2023"
   }
 
-  # Custom rules for Next.js routing
-  custom_rule {
-    source = "/<*>"
-    status = "404-200"
-    target = "/index.html"
-  }
-
-  custom_rule {
-    source = "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)/>"
-    status = "200"
-    target = "/index.html"
-  }
+  # Note: For Next.js SSR (WEB_COMPUTE platform), Amplify handles routing automatically
+  # Custom rewrite rules are not needed and can interfere with SSR
 
   # Enable auto branch creation for feature branches
   enable_auto_branch_creation   = false
