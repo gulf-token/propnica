@@ -18,7 +18,7 @@ export async function GET() {
 
   try {
     // Try a simple query
-    const result = await prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM "UserProfile"`;
+    const result = await prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM user_profiles`;
     userCount = Number(result[0].count);
     dbStatus = 'CONNECTED';
   } catch (error) {
