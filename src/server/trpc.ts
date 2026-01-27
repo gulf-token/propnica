@@ -50,32 +50,65 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     };
   }
 
-  const cookieStore = cookies();
+  try {
+    const cookieStore = cookies();
 
-  // Debug: Log auth cookies
-  const allCookies = cookieStore.getAll();
-  const authCookies = allCookies.filter(
-    (c) => c.name.includes('supabase') || c.name.includes('auth') || c.name.startsWith('sb-')
-  );
-  console.log('[tRPC Context] Auth cookies:', authCookies.map((c) => c.name));
+    // Debug: Log auth cookies
+    const allCookies = cookieStore.getAll();
+    const authCookies = allCookies.filter(
+      (c) => c.name.includes('supabase') || c.name.includes('auth') || c.name.startsWith('sb-')
+    );
+    console.log('[tRPC Context] Auth cookies:', authCookies.map((c) => c.name));
 
-  // Use auth-helpers-nextjs which properly handles cookie parsing
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+    // Check Supabase environment variables
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    console.log('[tRPC Context] Supabase URL set:', !!supabaseUrl);
+    console.log('[tRPC Context] Supabase anon key set:', !!supabaseAnonKey);
 
-  // Get session (this properly reads from cookies)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[tRPC Context] Missing Supabase environment variables');
+      return {
+        session: null,
+        userId: null,
+        prisma,
+        supabase: null,
+        headers: opts.headers,
+      };
+    }
 
-  console.log('[tRPC Context] Session:', session?.user?.id ? `found (user: ${session.user.id})` : 'null');
+    // Use auth-helpers-nextjs which properly handles cookie parsing
+    const supabase = createServerComponentClient({ cookies: () => cookieStore });
 
-  return {
-    session,
-    userId: session?.user?.id ?? null,
-    prisma,
-    supabase,
-    headers: opts.headers,
-  };
+    // Get session (this properly reads from cookies)
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error('[tRPC Context] Supabase getSession error:', error.message);
+    }
+
+    console.log('[tRPC Context] Session:', session?.user?.id ? `found (user: ${session.user.id})` : 'null');
+
+    return {
+      session,
+      userId: session?.user?.id ?? null,
+      prisma,
+      supabase,
+      headers: opts.headers,
+    };
+  } catch (error) {
+    console.error('[tRPC Context] Error creating context:', error instanceof Error ? error.message : error);
+    return {
+      session: null,
+      userId: null,
+      prisma,
+      supabase: null,
+      headers: opts.headers,
+    };
+  }
 };
 
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
