@@ -11,7 +11,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { ParsedScriptSchema, type ParsedScript } from '@/lib/ai/schemas';
-import { getAnthropicApiKey } from '@/lib/secrets';
 
 // Request validation schema
 const RequestSchema = z.object({
@@ -147,10 +146,10 @@ export async function POST(request: NextRequest) {
 
     const { script, options } = validationResult.data;
 
-    // Get API key from environment or SSM
-    const apiKey = await getAnthropicApiKey();
+    // Get API key from environment
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      console.error('[AI Parse Script] ANTHROPIC_API_KEY not found in env or SSM');
+      console.error('[AI Parse Script] ANTHROPIC_API_KEY not found in environment');
       return NextResponse.json(
         {
           success: false,
