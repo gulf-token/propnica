@@ -61,7 +61,21 @@
       "Bash(pnpm --version:*)",
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(echo:*)",
+      "Bash(AWS_DEFAULT_REGION=eu-central-1 aws amplify:*)",
+      "Bash(AWS_DEFAULT_REGION=eu-central-1 aws ssm put-parameter:*)",
+      "Bash(pnpm add:*)",
+      "Bash(AWS_DEFAULT_REGION=eu-central-1 aws iam:*)",
+      "Bash(AWS_DEFAULT_REGION=eu-central-1 aws ssm get-parameter:*)",
+      "Bash(git restore:*)",
+      "Bash(__NEW_LINE_79398cb9d78154da__ echo -e \"\\\\n=== Test 2: With zones ===\")",
+      "Bash(__NEW_LINE_6de570ac5f1b340a__ echo -e \"\\\\n=== Test 3: With route ===\")",
+      "Bash(AWS_DEFAULT_REGION=eu-central-1 aws rds describe-db-instances:*)",
+      "Bash(AWS_DEFAULT_REGION=eu-central-1 aws ec2 describe-security-groups:*)",
+      "Bash(PGPASSWORD='xdFeq_JezI0KBQ2uIo-BQndAXWKINN_X' psql:*)",
+      "WebFetch(domain:aws-amplify-prod-eu-central-1-artifacts.s3.eu-central-1.amazonaws.com)",
+      "WebFetch(domain:www.propnica.com)"
     ]
   }
 }
