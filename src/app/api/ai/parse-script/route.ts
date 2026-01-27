@@ -249,7 +249,7 @@ Return ONLY the JSON object, no other text.`;
         {
           success: false,
           error: 'AI response did not match expected format',
-          details: process.env.NODE_ENV === 'development' ? error.errors : undefined,
+          details: error.errors, // Always include for debugging
         },
         { status: 500 }
       );
