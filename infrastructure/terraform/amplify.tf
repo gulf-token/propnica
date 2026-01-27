@@ -49,8 +49,11 @@ resource "aws_amplify_app" "main" {
             - corepack enable
             - corepack prepare pnpm@latest --activate
             - pnpm install
+            - echo "Checking env vars at preBuild..."
+            - echo "ANTHROPIC_API_KEY is set:" $([[ -n "$ANTHROPIC_API_KEY" ]] && echo "YES" || echo "NO")
         build:
           commands:
+            - echo "Building with env vars..."
             - pnpm run build
       artifacts:
         baseDirectory: .next
