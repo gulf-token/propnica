@@ -146,20 +146,14 @@ export async function POST(request: NextRequest) {
 
     const { script, options } = validationResult.data;
 
-    // Get API key - using dynamic access to avoid build-time inlining
-    const envKey = 'ANTHROPIC_API_KEY';
-    const apiKey = process.env[envKey];
+    // Get API key from build-time inlined environment variable
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      console.error('[AI Parse Script v3] Key not found');
+      console.error('[AI Parse Script] ANTHROPIC_API_KEY not found');
       return NextResponse.json(
         {
           success: false,
-          error: 'AI service not configured (v3). Please add ANTHROPIC_API_KEY to environment.',
-          debug: {
-            hasKey: !!process.env[envKey],
-            keyLength: (process.env[envKey] ?? '').length,
-            envKeyName: envKey,
-          },
+          error: 'AI service not configured. Please add ANTHROPIC_API_KEY to environment.',
         },
         { status: 503 }
       );
