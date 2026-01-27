@@ -54,6 +54,19 @@ github_branch = "main"
 github_access_token = ""
 
 # ===========================================
+# Public Environment Variables
+# ===========================================
+
+# Supabase project URL and anonymous key (public values)
+# These are safe to include in client-side code
+supabase_url      = ""  # e.g., "https://xxxxx.supabase.co"
+supabase_anon_key = ""  # The anon (public) key from Supabase dashboard
+
+# Mapbox public access token
+# Get from: https://account.mapbox.com/access-tokens/
+mapbox_access_token = ""
+
+# ===========================================
 # Lambda Configuration
 # ===========================================
 

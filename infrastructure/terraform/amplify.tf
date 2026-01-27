@@ -25,6 +25,24 @@ variable "github_access_token" {
   default     = "" # Set via terraform.tfvars or environment variable
 }
 
+variable "supabase_url" {
+  description = "Supabase project URL (public)"
+  type        = string
+  default     = "" # Set via terraform.tfvars
+}
+
+variable "supabase_anon_key" {
+  description = "Supabase anonymous key (public)"
+  type        = string
+  default     = "" # Set via terraform.tfvars
+}
+
+variable "mapbox_access_token" {
+  description = "Mapbox public access token"
+  type        = string
+  default     = "" # Set via terraform.tfvars
+}
+
 # ===========================================
 # Amplify App
 # ===========================================
@@ -49,11 +67,21 @@ resource "aws_amplify_app" "main" {
             - corepack enable
             - corepack prepare pnpm@latest --activate
             - pnpm install
-            - echo "Checking env vars at preBuild..."
+            # Retrieve secrets from SSM Parameter Store
+            - echo "Retrieving secrets from SSM..."
+            - export DATABASE_URL=$(aws ssm get-parameter --name "/propnica/${var.environment}/database/url" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+            - export SUPABASE_SERVICE_ROLE_KEY=$(aws ssm get-parameter --name "/propnica/${var.environment}/supabase/service_role_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+            - export ANTHROPIC_API_KEY=$(aws ssm get-parameter --name "/propnica/${var.environment}/anthropic/api_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
             - echo "DATABASE_URL is set:" $([[ -n "$DATABASE_URL" ]] && echo "YES" || echo "NO")
+            - echo "SUPABASE_SERVICE_ROLE_KEY is set:" $([[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] && echo "YES" || echo "NO")
+            - echo "ANTHROPIC_API_KEY is set:" $([[ -n "$ANTHROPIC_API_KEY" ]] && echo "YES" || echo "NO")
             - npx prisma generate
         build:
           commands:
+            # Re-export for build phase (env vars don't persist between phases)
+            - export DATABASE_URL=$(aws ssm get-parameter --name "/propnica/${var.environment}/database/url" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+            - export SUPABASE_SERVICE_ROLE_KEY=$(aws ssm get-parameter --name "/propnica/${var.environment}/supabase/service_role_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+            - export ANTHROPIC_API_KEY=$(aws ssm get-parameter --name "/propnica/${var.environment}/anthropic/api_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
             - pnpm run build
       artifacts:
         baseDirectory: .next
@@ -69,11 +97,17 @@ resource "aws_amplify_app" "main" {
   platform = "WEB_COMPUTE"
 
   # Environment variables
-  environment_variables = {
-    NODE_ENV            = var.environment == "production" ? "production" : "development"
-    NEXT_PUBLIC_APP_URL = var.environment == "production" ? "https://${var.domain_name}" : "https://${var.environment}.${var.domain_name}"
-    _CUSTOM_IMAGE       = "amplify:al2023"
-  }
+  # Note: Amplify doesn't allow empty values, so we use merge with conditionals
+  environment_variables = merge(
+    {
+      NODE_ENV                      = var.environment == "production" ? "production" : "development"
+      NEXT_PUBLIC_APP_URL           = var.environment == "production" ? "https://${var.domain_name}" : "https://${var.environment}.${var.domain_name}"
+      NEXT_PUBLIC_SUPABASE_URL      = var.supabase_url
+      NEXT_PUBLIC_SUPABASE_ANON_KEY = var.supabase_anon_key
+      _CUSTOM_IMAGE                 = "amplify:al2023"
+    },
+    var.mapbox_access_token != "" ? { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN = var.mapbox_access_token } : {}
+  )
 
   # Note: For Next.js SSR (WEB_COMPUTE platform), Amplify handles routing automatically
   # Custom rewrite rules are not needed and can interfere with SSR
@@ -110,9 +144,11 @@ resource "aws_amplify_branch" "main" {
   enable_auto_build      = true
   enable_pull_request_preview = var.environment != "production"
 
-  environment_variables = {
-    # These will be populated from SSM during build
-    DATABASE_URL = "{{resolve:ssm:/propnica/${var.environment}/database/url}}"
+  # Server-side env vars (DATABASE_URL, ANTHROPIC_API_KEY, etc.) are retrieved
+  # from SSM during the build phase and baked into the Next.js bundle via next.config.js.
+  # We use a lifecycle ignore to avoid conflicts with manually-set branch variables.
+  lifecycle {
+    ignore_changes = [environment_variables]
   }
 }
 

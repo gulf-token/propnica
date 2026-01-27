@@ -104,27 +104,42 @@ const t = initTRPC.context<Context>().create({
 
 const isAuthed = t.middleware(async ({ ctx, next }) => {
   if (!ctx.session || !ctx.userId) {
+    console.log('[tRPC isAuthed] No session or userId - UNAUTHORIZED');
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'You must be logged in to perform this action',
     });
   }
 
-  // Ensure user profile exists in the database (sync Supabase Auth with Prisma)
-  const existingProfile = await ctx.prisma.userProfile.findUnique({
-    where: { userId: ctx.userId },
-  });
+  console.log(`[tRPC isAuthed] Checking profile for user ${ctx.userId}`);
 
-  if (!existingProfile) {
-    // Create user profile on first access
-    await ctx.prisma.userProfile.create({
-      data: {
-        userId: ctx.userId,
-        displayName: ctx.session.user.email?.split('@')[0] ?? null,
-        preferences: {},
-      },
+  try {
+    // Ensure user profile exists in the database (sync Supabase Auth with Prisma)
+    const existingProfile = await ctx.prisma.userProfile.findUnique({
+      where: { userId: ctx.userId },
     });
-    console.log(`[tRPC] Created UserProfile for user ${ctx.userId}`);
+
+    if (!existingProfile) {
+      // Create user profile on first access
+      console.log(`[tRPC isAuthed] Creating new profile for user ${ctx.userId}`);
+      await ctx.prisma.userProfile.create({
+        data: {
+          userId: ctx.userId,
+          displayName: ctx.session.user.email?.split('@')[0] ?? null,
+          preferences: {},
+        },
+      });
+      console.log(`[tRPC isAuthed] Created UserProfile for user ${ctx.userId}`);
+    } else {
+      console.log(`[tRPC isAuthed] Found existing profile for user ${ctx.userId}`);
+    }
+  } catch (error) {
+    console.error('[tRPC isAuthed] Database error:', error instanceof Error ? error.message : error);
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Database connection error',
+      cause: error,
+    });
   }
 
   return next({
