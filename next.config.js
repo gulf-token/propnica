@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Bake server-side env vars into the bundle at build time
+  // This is needed because Amplify WEB_COMPUTE doesn't pass non-NEXT_PUBLIC env vars at runtime
+  env: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    DATABASE_URL: process.env.DATABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  },
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'sharp'],
   },
