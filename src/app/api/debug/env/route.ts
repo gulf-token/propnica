@@ -4,11 +4,27 @@
  */
 
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   const databaseUrl = process.env.DATABASE_URL;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Test database connection
+  let dbStatus = 'NOT_TESTED';
+  let dbError: string | null = null;
+  let userCount: number | null = null;
+
+  try {
+    // Try a simple query
+    const result = await prisma.$queryRaw<[{ count: bigint }]>`SELECT COUNT(*) as count FROM "UserProfile"`;
+    userCount = Number(result[0].count);
+    dbStatus = 'CONNECTED';
+  } catch (error) {
+    dbStatus = 'ERROR';
+    dbError = error instanceof Error ? error.message : String(error);
+  }
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
@@ -28,6 +44,11 @@ export async function GET() {
       NODE_ENV: process.env.NODE_ENV,
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    },
+    database: {
+      status: dbStatus,
+      error: dbError,
+      userCount,
     },
   });
 }
