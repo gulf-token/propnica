@@ -146,14 +146,18 @@ export async function POST(request: NextRequest) {
 
     const { script, options } = validationResult.data;
 
-    // Get API key from environment
+    // Get API key from environment (v2)
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      console.error('[AI Parse Script] ANTHROPIC_API_KEY not found in environment');
+      console.error('[AI Parse Script v2] ANTHROPIC_API_KEY not found, hasKey:', !!process.env.ANTHROPIC_API_KEY);
       return NextResponse.json(
         {
           success: false,
-          error: 'AI service not configured. Please add ANTHROPIC_API_KEY to environment.',
+          error: 'AI service not configured (v2). Please add ANTHROPIC_API_KEY to environment.',
+          debug: {
+            hasKey: !!process.env.ANTHROPIC_API_KEY,
+            keyLength: process.env.ANTHROPIC_API_KEY?.length ?? 0,
+          },
         },
         { status: 503 }
       );
