@@ -39,10 +39,10 @@ export const CameraActivitySchema = z.object({
     return 'show'; // Default
   }),
   location: z.string(),
-  zoom: z.number().optional(),
-  bearing: z.number().optional(),
-  pitch: z.number().optional(),
-  orbitDegrees: z.number().optional(),
+  zoom: z.number().nullish(),
+  bearing: z.number().nullish(),
+  pitch: z.number().nullish(),
+  orbitDegrees: z.number().nullish(),
 }).passthrough();
 
 // ===========================================
@@ -57,11 +57,11 @@ export const ZoneActivitySchema = z.object({
     return 'draw';
   }),
   location: z.string(),
-  name: z.string().optional(),
-  colour: z.string().optional(),
-  color: z.string().optional(), // US spelling
-  opacity: z.number().optional(),
-  style: z.string().optional(),
+  name: z.string().nullish(),
+  colour: z.string().nullish(),
+  color: z.string().nullish(), // US spelling
+  opacity: z.number().nullish(),
+  style: z.string().nullish(),
 }).passthrough().transform((data) => ({
   ...data,
   colour: data.colour || data.color, // Normalize to UK spelling
@@ -80,12 +80,12 @@ export const RouteActivitySchema = z.object({
   }),
   from: z.string(),
   to: z.string(),
-  waypoints: z.array(z.string()).optional(),
-  name: z.string().optional(),
-  colour: z.string().optional(),
-  color: z.string().optional(),
-  animated: z.boolean().optional().default(true),
-  animationDuration: z.number().optional(),
+  waypoints: z.array(z.string()).nullish(),
+  name: z.string().nullish(),
+  colour: z.string().nullish(),
+  color: z.string().nullish(),
+  animated: z.boolean().nullish().default(true),
+  animationDuration: z.number().nullish(),
 }).passthrough().transform((data) => ({
   ...data,
   colour: data.colour || data.color,
@@ -206,14 +206,14 @@ export const SettingsSchema = z.object({
 // ===========================================
 
 export const ParsedScriptSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
+  title: z.string().nullish(), // Accept string, null, or undefined
+  description: z.string().nullish(),
   settings: SettingsSchema,
   timeline: z.array(TimelineItemSchema),
   locations: z.array(z.object({
     name: z.string(),
-    context: z.string().optional(),
-  })).optional(),
+    context: z.string().nullish(),
+  })).nullish(),
 }).passthrough();
 
 export type ParsedScript = z.infer<typeof ParsedScriptSchema>;
