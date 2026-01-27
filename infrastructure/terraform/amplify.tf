@@ -36,6 +36,9 @@ resource "aws_amplify_app" "main" {
   # GitHub access token (required for private repos)
   access_token = var.github_access_token != "" ? var.github_access_token : null
 
+  # IAM service role for SSM access and other AWS services
+  iam_service_role_arn = aws_iam_role.amplify_service_role.arn
+
   # Build settings for Next.js with pnpm
   build_spec = <<-EOT
     version: 1
