@@ -5,9 +5,8 @@
 
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-  // Only allow in non-production or with debug header
-  const envVars = {
+function getEnvVars() {
+  return {
     NODE_ENV: process.env.NODE_ENV,
     hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
     anthropicKeyLength: process.env.ANTHROPIC_API_KEY?.length ?? 0,
@@ -16,6 +15,12 @@ export async function GET() {
     hasDatabaseUrl: !!process.env.DATABASE_URL,
     awsRegion: process.env.AWS_REGION ?? 'not-set',
   };
+}
 
-  return NextResponse.json(envVars);
+export async function GET() {
+  return NextResponse.json({ method: 'GET', ...getEnvVars() });
+}
+
+export async function POST() {
+  return NextResponse.json({ method: 'POST', ...getEnvVars() });
 }
