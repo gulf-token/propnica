@@ -14,11 +14,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "propnica-terraform-state"
+    bucket         = "propnica-terraform-state-100389127510"
     key            = "infrastructure/terraform.tfstate"
     region         = "eu-central-1"
     encrypt        = true
     dynamodb_table = "propnica-terraform-locks"
+    profile        = "propnica"
   }
 }
 
@@ -27,7 +28,8 @@ terraform {
 # ===========================================
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
+  profile = "propnica"
 
   default_tags {
     tags = {
@@ -40,8 +42,9 @@ provider "aws" {
 
 # Provider for us-east-1 (required for CloudFront ACM certificates)
 provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
+  alias   = "us_east_1"
+  region  = "us-east-1"
+  profile = "propnica"
 
   default_tags {
     tags = {
@@ -111,7 +114,7 @@ data "aws_region" "current" {}
 
 # Renders bucket - stores rendered videos
 resource "aws_s3_bucket" "renders" {
-  bucket = "propnica-renders-${var.environment}"
+  bucket = "propnica-renders-${var.environment}-100389127510"
 }
 
 resource "aws_s3_bucket_versioning" "renders" {
@@ -161,7 +164,7 @@ resource "aws_s3_bucket_public_access_block" "renders" {
 
 # Assets bucket - stores user uploads
 resource "aws_s3_bucket" "assets" {
-  bucket = "propnica-assets-${var.environment}"
+  bucket = "propnica-assets-${var.environment}-100389127510"
 }
 
 resource "aws_s3_bucket_versioning" "assets" {
@@ -194,7 +197,7 @@ resource "aws_s3_bucket_public_access_block" "assets" {
 
 # Thumbnails bucket - stores video thumbnails
 resource "aws_s3_bucket" "thumbnails" {
-  bucket = "propnica-thumbnails-${var.environment}"
+  bucket = "propnica-thumbnails-${var.environment}-100389127510"
 }
 
 resource "aws_s3_bucket_cors_configuration" "thumbnails" {

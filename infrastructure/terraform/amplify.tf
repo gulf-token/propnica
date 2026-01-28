@@ -171,7 +171,9 @@ resource "aws_amplify_branch" "develop" {
 # ===========================================
 
 resource "aws_amplify_domain_association" "main" {
-  count = var.environment == "production" ? 1 : 0
+  # Temporarily disabled - domain still attached to old Amplify app in account 992382672555
+  # Re-enable after removing from old account
+  count = 0 # var.environment == "production" ? 1 : 0
 
   app_id      = aws_amplify_app.main.id
   domain_name = var.domain_name
