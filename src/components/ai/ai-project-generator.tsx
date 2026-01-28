@@ -63,8 +63,81 @@ import {
   type GeocodedLocation,
 } from '@/lib/ai/parse-script';
 import { formatSecondsToTime } from '@/lib/ai/time-parser';
-import type { ProjectConfig, AspectRatioPreset, MapStyle } from '@/types';
+import type { ProjectConfig, AspectRatioPreset, MapStyle, Keyframe, Zone, Route, TextMarker } from '@/types';
 import { cn } from '@/lib/utils';
+
+// ===========================================
+// Geocoding Helper
+// ===========================================
+
+async function geocodeLocation(locationName: string): Promise<GeocodedLocation | null> {
+  const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  if (!accessToken) {
+    console.warn('Mapbox access token not configured for geocoding');
+    return null;
+  }
+
+  try {
+    // Bias towards UAE for property focus
+    const proximity = '55.2708,25.2048'; // Dubai coordinates
+
+    const url = new URL(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(locationName)}.json`
+    );
+    url.searchParams.set('access_token', accessToken);
+    url.searchParams.set('proximity', proximity);
+    url.searchParams.set('limit', '1');
+    url.searchParams.set('types', 'address,poi,place,locality,neighborhood');
+    url.searchParams.set('language', 'en');
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      console.error(`Geocoding API error for "${locationName}": ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.features && data.features.length > 0) {
+      const feature = data.features[0];
+      return {
+        name: locationName,
+        coordinates: feature.center as [number, number],
+        confidence: feature.relevance ?? 0.5,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Geocoding error for "${locationName}":`, error);
+    return null;
+  }
+}
+
+async function geocodeAllLocations(
+  locations: string[],
+  onProgress?: (message: string) => void
+): Promise<Map<string, GeocodedLocation>> {
+  const geocodedLocations = new Map<string, GeocodedLocation>();
+
+  for (let i = 0; i < locations.length; i++) {
+    const location = locations[i];
+    onProgress?.(`Geocoding location ${i + 1}/${locations.length}: ${location}`);
+
+    const result = await geocodeLocation(location);
+    if (result) {
+      geocodedLocations.set(location, result);
+    }
+
+    // Small delay to avoid rate limiting
+    if (i < locations.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  return geocodedLocations;
+}
 
 // ===========================================
 // Types
@@ -364,6 +437,7 @@ function ProcessingStep({
 interface ReviewStepProps {
   parsedScript: ParsedScript | null;
   projectConfig: ProjectConfig | null;
+  onConfigChange: (config: ProjectConfig) => void;
   onBack: () => void;
   onRegenerate: () => void;
   onCreate: () => void;
@@ -372,10 +446,13 @@ interface ReviewStepProps {
 function ReviewStep({
   parsedScript,
   projectConfig,
+  onConfigChange,
   onBack,
   onRegenerate,
   onCreate,
 }: ReviewStepProps) {
+  const [selectedItemId, setSelectedItemId] = React.useState<string | undefined>();
+
   if (!parsedScript || !projectConfig) {
     return (
       <div className="text-center py-12">
@@ -383,6 +460,89 @@ function ReviewStep({
       </div>
     );
   }
+
+  // Handle item updates
+  const handleItemUpdate = (id: string, type: TimelineItemType, updates: Partial<TimelineTableItem>) => {
+    const newConfig = { ...projectConfig };
+
+    if (type === 'keyframe') {
+      newConfig.keyframes = projectConfig.keyframes.map((kf) => {
+        if (kf.id !== id) return kf;
+        return {
+          ...kf,
+          name: updates.name ?? kf.name,
+          time: updates.startTime ?? kf.time,
+          duration: updates.duration ?? kf.duration,
+        };
+      });
+    } else if (type === 'zone') {
+      newConfig.zones = projectConfig.zones.map((zone) => {
+        if (zone.id !== id) return zone;
+        return {
+          ...zone,
+          name: updates.name ?? zone.name,
+          timing: {
+            ...zone.timing,
+            startTime: updates.startTime ?? zone.timing.startTime,
+            endTime: updates.endTime ?? zone.timing.endTime,
+          },
+        };
+      });
+    } else if (type === 'route') {
+      newConfig.routes = projectConfig.routes.map((route) => {
+        if (route.id !== id) return route;
+        return {
+          ...route,
+          name: updates.name ?? route.name,
+          timing: {
+            ...route.timing,
+            startTime: updates.startTime ?? route.timing.startTime,
+            endTime: updates.endTime ?? route.timing.endTime,
+          },
+        };
+      });
+    } else if (type === 'textMarker') {
+      newConfig.textMarkers = projectConfig.textMarkers.map((marker) => {
+        if (marker.id !== id) return marker;
+        return {
+          ...marker,
+          text: updates.name ?? marker.text,
+          timing: {
+            ...marker.timing,
+            startTime: updates.startTime ?? marker.timing.startTime,
+            endTime: updates.endTime ?? marker.timing.endTime,
+          },
+        };
+      });
+    }
+
+    onConfigChange(newConfig);
+  };
+
+  // Handle item deletion
+  const handleItemDelete = (id: string, type: TimelineItemType) => {
+    const newConfig = { ...projectConfig };
+
+    if (type === 'keyframe') {
+      newConfig.keyframes = projectConfig.keyframes.filter((kf) => kf.id !== id);
+    } else if (type === 'zone') {
+      newConfig.zones = projectConfig.zones.filter((zone) => zone.id !== id);
+    } else if (type === 'route') {
+      newConfig.routes = projectConfig.routes.filter((route) => route.id !== id);
+    } else if (type === 'textMarker') {
+      newConfig.textMarkers = projectConfig.textMarkers.filter((marker) => marker.id !== id);
+    }
+
+    onConfigChange(newConfig);
+    if (selectedItemId === id) {
+      setSelectedItemId(undefined);
+    }
+  };
+
+  // Handle item selection
+  const handleItemSelect = (id: string, _type: TimelineItemType) => {
+    setSelectedItemId(id === selectedItemId ? undefined : id);
+  };
 
   return (
     <div className="space-y-6">
@@ -429,6 +589,10 @@ function ReviewStep({
         textMarkers={projectConfig.textMarkers}
         totalDuration={projectConfig.settings.duration}
         editable={true}
+        selectedItemId={selectedItemId}
+        onItemSelect={handleItemSelect}
+        onItemUpdate={handleItemUpdate}
+        onItemDelete={handleItemDelete}
       />
 
       {/* Actions */}
@@ -513,11 +677,20 @@ export function AIProjectGenerator({
       }
 
       setProgress('Processing timeline...');
-      setParsedScript(data.data);
+      const parsedData = data.data as ParsedScript;
+      setParsedScript(parsedData);
 
-      // Convert to ProjectConfig
+      // Extract and geocode all locations
+      setProgress('Geocoding locations...');
+      const locations = extractLocations(parsedData);
+      console.log('[AI Generator] Extracted locations:', locations);
+
+      const geocodedLocations = await geocodeAllLocations(locations, setProgress);
+      console.log('[AI Generator] Geocoded locations:', Array.from(geocodedLocations.entries()));
+
+      // Convert to ProjectConfig with geocoded coordinates
       setProgress('Generating project configuration...');
-      const config = convertToProjectConfig(data.data);
+      const config = convertToProjectConfig(parsedData, { geocodedLocations });
       setProjectConfig(config);
 
       setStep('review');
@@ -589,6 +762,7 @@ export function AIProjectGenerator({
           <ReviewStep
             parsedScript={parsedScript}
             projectConfig={projectConfig}
+            onConfigChange={setProjectConfig}
             onBack={() => setStep('input')}
             onRegenerate={parseWithAI}
             onCreate={handleCreate}
