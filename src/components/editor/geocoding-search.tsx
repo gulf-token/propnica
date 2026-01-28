@@ -48,16 +48,14 @@ async function searchPlaces(query: string): Promise<GeocodingResult[]> {
   try {
     // Bias towards UAE for property focus
     const proximity = '55.2708,25.2048'; // Dubai coordinates
-    const bbox = '51.5,22.5,56.5,26.5'; // UAE bounding box
 
     const url = new URL(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`
     );
     url.searchParams.set('access_token', accessToken);
     url.searchParams.set('proximity', proximity);
-    url.searchParams.set('bbox', bbox);
     url.searchParams.set('limit', '8');
-    url.searchParams.set('types', 'address,poi,place,locality,neighborhood,postcode');
+    // Note: Removed restrictive types filter for better POI/landmark results
     url.searchParams.set('language', 'en');
 
     const response = await fetch(url.toString());

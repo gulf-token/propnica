@@ -70,7 +70,7 @@ function useMapboxGeocode(
         const params = new URLSearchParams({
           access_token: token,
           limit: '5',
-          types: 'place,locality,neighborhood,address,poi',
+          // Note: No restrictive types filter for better landmark results
         });
 
         if (options.proximity) {

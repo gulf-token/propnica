@@ -67,10 +67,133 @@ import type { ProjectConfig, AspectRatioPreset, MapStyle, Keyframe, Zone, Route,
 import { cn } from '@/lib/utils';
 
 // ===========================================
+// Known UAE Landmarks with Precise Coordinates
+// ===========================================
+
+const KNOWN_LANDMARKS: Record<string, [number, number]> = {
+  // Dubai Landmarks
+  'burj khalifa': [55.2744, 25.1972],
+  'burj al arab': [55.1853, 25.1412],
+  'dubai mall': [55.2796, 25.1985],
+  'dubai marina': [55.1430, 25.0805],
+  'palm jumeirah': [55.1384, 25.1124],
+  'dubai frame': [55.3001, 25.2352],
+  'museum of the future': [55.2826, 25.2198],
+  'dubai creek': [55.3272, 25.2631],
+  'dubai creek harbour': [55.3442, 25.2044],
+  'downtown dubai': [55.2744, 25.1972],
+  'business bay': [55.2646, 25.1850],
+  'jbr': [55.1410, 25.0770],
+  'jumeirah beach residence': [55.1410, 25.0770],
+  'dubai international airport': [55.3647, 25.2528],
+  'dxb airport': [55.3647, 25.2528],
+  'emirates towers': [55.2829, 25.2176],
+  'world trade centre dubai': [55.2829, 25.2288],
+  'deira': [55.3258, 25.2728],
+  'bur dubai': [55.3028, 25.2608],
+  'city walk': [55.2611, 25.2111],
+  'la mer': [55.2536, 25.2211],
+  'bluewaters island': [55.1254, 25.0810],
+  'ain dubai': [55.1244, 25.0783],
+  'dubai hills': [55.2410, 25.1236],
+  'arabian ranches': [55.2598, 25.0487],
+  'motor city': [55.2358, 25.0432],
+  'silicon oasis': [55.3911, 25.1186],
+  'al barsha': [55.2098, 25.1025],
+  'jumeirah village circle': [55.2090, 25.0635],
+  'jvc': [55.2090, 25.0635],
+  'mirdif': [55.4246, 25.2166],
+  'ras al khor wildlife sanctuary': [55.3361, 25.1849],
+
+  // Abu Dhabi Landmarks
+  'sheikh zayed grand mosque': [54.4714, 24.4128],
+  'louvre abu dhabi': [54.3983, 24.5336],
+  'yas island': [54.6046, 24.4910],
+  'yas marina circuit': [54.6026, 24.4677],
+  'ferrari world': [54.6073, 24.4834],
+  'emirates palace': [54.3172, 24.4619],
+  'corniche abu dhabi': [54.3428, 24.4718],
+  'qasr al watan': [54.3161, 24.4620],
+  'saadiyat island': [54.4339, 24.5407],
+  'al maryah island': [54.3893, 24.4994],
+
+  // Sharjah Landmarks
+  'sharjah museum': [55.3926, 25.3579],
+  'al noor mosque sharjah': [55.3877, 25.3581],
+  'al majaz waterfront': [55.3913, 25.3352],
+
+  // Other Emirates
+  'ajman corniche': [55.4434, 25.4167],
+  'ras al khaimah': [55.9432, 25.7895],
+  'fujairah': [56.3411, 25.1288],
+  'umm al quwain': [55.5689, 25.5582],
+
+  // Dubai Areas/Neighborhoods
+  'bay square': [55.2646, 25.1850],
+  'bay square business bay': [55.2646, 25.1850],
+  'emaar beachfront': [55.1340, 25.0850],
+  'dubai south': [55.1692, 24.8981],
+  'expo city dubai': [55.0867, 24.9600],
+  'dubai production city': [55.1932, 25.0358],
+  'jumeirah lake towers': [55.1462, 25.0735],
+  'jlt': [55.1462, 25.0735],
+  'tecom': [55.1730, 25.0970],
+  'al quoz': [55.2259, 25.1389],
+  'al wasl': [55.2550, 25.1892],
+};
+
+// Normalize location name for matching
+function normalizeLocationName(name: string): string {
+  return name.toLowerCase().trim().replace(/[,.']/g, '');
+}
+
+// Find landmark coordinates with fuzzy matching
+function findKnownLandmark(locationName: string): [number, number] | null {
+  const normalized = normalizeLocationName(locationName);
+
+  // Direct match
+  if (KNOWN_LANDMARKS[normalized]) {
+    return KNOWN_LANDMARKS[normalized];
+  }
+
+  // Partial match - check if location contains landmark name or vice versa
+  for (const [landmark, coords] of Object.entries(KNOWN_LANDMARKS)) {
+    if (normalized.includes(landmark) || landmark.includes(normalized)) {
+      return coords;
+    }
+  }
+
+  // Word-based match - check if any key words match
+  const normalizedWords = normalized.split(/\s+/);
+  for (const [landmark, coords] of Object.entries(KNOWN_LANDMARKS)) {
+    const landmarkWords = landmark.split(/\s+/);
+    // Check if at least 2 words match, or if it's a single-word match and both are short
+    const matchingWords = normalizedWords.filter(w => landmarkWords.includes(w) && w.length > 2);
+    if (matchingWords.length >= 2 || (matchingWords.length === 1 && landmarkWords.length === 1)) {
+      return coords;
+    }
+  }
+
+  return null;
+}
+
+// ===========================================
 // Geocoding Helper
 // ===========================================
 
 async function geocodeLocation(locationName: string): Promise<GeocodedLocation | null> {
+  // First check known landmarks for precise coordinates
+  const knownCoords = findKnownLandmark(locationName);
+  if (knownCoords) {
+    console.log(`[Geocoding] Found known landmark for "${locationName}":`, knownCoords);
+    return {
+      name: locationName,
+      coordinates: knownCoords,
+      confidence: 1.0, // High confidence for known landmarks
+    };
+  }
+
+  // Fall back to Mapbox geocoding
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   if (!accessToken) {
     console.warn('Mapbox access token not configured for geocoding');
@@ -87,7 +210,7 @@ async function geocodeLocation(locationName: string): Promise<GeocodedLocation |
     url.searchParams.set('access_token', accessToken);
     url.searchParams.set('proximity', proximity);
     url.searchParams.set('limit', '1');
-    url.searchParams.set('types', 'address,poi,place,locality,neighborhood');
+    // Remove restrictive types filter for better results
     url.searchParams.set('language', 'en');
 
     const response = await fetch(url.toString());
@@ -101,6 +224,7 @@ async function geocodeLocation(locationName: string): Promise<GeocodedLocation |
 
     if (data.features && data.features.length > 0) {
       const feature = data.features[0];
+      console.log(`[Geocoding] Mapbox result for "${locationName}":`, feature.center, feature.place_type);
       return {
         name: locationName,
         coordinates: feature.center as [number, number],
@@ -108,6 +232,7 @@ async function geocodeLocation(locationName: string): Promise<GeocodedLocation |
       };
     }
 
+    console.warn(`[Geocoding] No results found for "${locationName}"`);
     return null;
   } catch (error) {
     console.error(`Geocoding error for "${locationName}":`, error);
