@@ -30,20 +30,14 @@ export function Footer() {
             <h4 className="font-semibold">Product</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link
-                  href="/features"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Features
-                </Link>
+                </span>
               </li>
               <li>
-                <Link
-                  href="/pricing"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Pricing
-                </Link>
+                </span>
               </li>
               <li>
                 <Link
@@ -54,12 +48,9 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/changelog"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Changelog
-                </Link>
+                </span>
               </li>
             </ul>
           </div>
@@ -69,36 +60,24 @@ export function Footer() {
             <h4 className="font-semibold">Resources</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link
-                  href="/docs"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Documentation
-                </Link>
+                </span>
               </li>
               <li>
-                <Link
-                  href="/tutorials"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Tutorials
-                </Link>
+                </span>
               </li>
               <li>
-                <Link
-                  href="/blog"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Blog
-                </Link>
+                </span>
               </li>
               <li>
-                <Link
-                  href="/support"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Support
-                </Link>
+                </span>
               </li>
             </ul>
           </div>
@@ -124,12 +103,9 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/cookies"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <span className="text-muted-foreground/50 cursor-not-allowed">
                   Cookie Policy
-                </Link>
+                </span>
               </li>
             </ul>
           </div>
