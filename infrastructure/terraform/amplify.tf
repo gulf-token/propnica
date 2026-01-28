@@ -43,6 +43,12 @@ variable "mapbox_access_token" {
   default     = "" # Set via terraform.tfvars
 }
 
+variable "google_maps_api_key" {
+  description = "Google Maps API key for geocoding"
+  type        = string
+  default     = "" # Set via terraform.tfvars
+}
+
 # ===========================================
 # Amplify App
 # ===========================================
@@ -106,7 +112,8 @@ resource "aws_amplify_app" "main" {
       NEXT_PUBLIC_SUPABASE_ANON_KEY = var.supabase_anon_key
       _CUSTOM_IMAGE                 = "amplify:al2023"
     },
-    var.mapbox_access_token != "" ? { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN = var.mapbox_access_token } : {}
+    var.mapbox_access_token != "" ? { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN = var.mapbox_access_token } : {},
+    var.google_maps_api_key != "" ? { NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = var.google_maps_api_key } : {}
   )
 
   # Note: For Next.js SSR (WEB_COMPUTE platform), Amplify handles routing automatically

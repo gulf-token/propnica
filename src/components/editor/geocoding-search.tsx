@@ -4,6 +4,13 @@ import * as React from 'react';
 import { Search, MapPin, Building2, Navigation, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, Input, ScrollArea } from '@/components/ui';
+import {
+  searchPlacesWithGoogle,
+  getPlaceDetails,
+  generateSessionToken,
+  getZoomForPlaceType,
+  type GooglePlaceAutocompleteResult,
+} from '@/lib/google-geocoding';
 
 // ===========================================
 // Types
@@ -32,11 +39,36 @@ export interface GeocodingSearchProps {
   className?: string;
 }
 
+// Internal type for Google search results before coordinate lookup
+interface SearchResult {
+  placeId: string;
+  text: string;
+  secondaryText: string;
+  types: string[];
+}
+
 // ===========================================
-// Mapbox Geocoding API Service
+// Google Places Autocomplete Service
 // ===========================================
 
-async function searchPlaces(query: string): Promise<GeocodingResult[]> {
+async function searchPlacesGoogle(
+  query: string,
+  sessionToken: string
+): Promise<SearchResult[]> {
+  if (!query || query.length < 2) return [];
+
+  const results = await searchPlacesWithGoogle(query, { sessionToken });
+
+  return results.map((result) => ({
+    placeId: result.placeId,
+    text: result.mainText,
+    secondaryText: result.secondaryText,
+    types: result.types,
+  }));
+}
+
+// Fallback to Mapbox if Google is not available
+async function searchPlacesMapbox(query: string): Promise<GeocodingResult[]> {
   if (!query || query.length < 2) return [];
 
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -46,26 +78,19 @@ async function searchPlaces(query: string): Promise<GeocodingResult[]> {
   }
 
   try {
-    // Bias towards UAE for property focus
     const proximity = '55.2708,25.2048'; // Dubai coordinates
-
     const url = new URL(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`
     );
     url.searchParams.set('access_token', accessToken);
     url.searchParams.set('proximity', proximity);
     url.searchParams.set('limit', '8');
-    // Note: Removed restrictive types filter for better POI/landmark results
     url.searchParams.set('language', 'en');
 
     const response = await fetch(url.toString());
-
-    if (!response.ok) {
-      throw new Error(`Geocoding API error: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Geocoding API error: ${response.status}`);
 
     const data = await response.json();
-
     return data.features.map((feature: any) => ({
       id: feature.id,
       place_name: feature.place_name,
@@ -76,7 +101,7 @@ async function searchPlaces(query: string): Promise<GeocodingResult[]> {
       properties: feature.properties,
     }));
   } catch (error) {
-    console.error('Geocoding search error:', error);
+    console.error('Mapbox geocoding search error:', error);
     return [];
   }
 }
@@ -150,12 +175,18 @@ export function GeocodingSearch({
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const [query, setQuery] = React.useState('');
-  const [results, setResults] = React.useState<GeocodingResult[]>([]);
+  const [googleResults, setGoogleResults] = React.useState<SearchResult[]>([]);
+  const [mapboxResults, setMapboxResults] = React.useState<GeocodingResult[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isOpen, setIsOpen] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(-1);
+  const [sessionToken] = React.useState(() => generateSessionToken());
+  const [useGoogle, setUseGoogle] = React.useState(true);
 
   const debouncedQuery = useDebounce(query, 300);
+
+  // Check if Google API key is available
+  const hasGoogleKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   // ===========================================
   // Search Effect
@@ -164,21 +195,36 @@ export function GeocodingSearch({
   React.useEffect(() => {
     const performSearch = async () => {
       if (!debouncedQuery || debouncedQuery.length < 2) {
-        setResults([]);
+        setGoogleResults([]);
+        setMapboxResults([]);
         setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      const searchResults = await searchPlaces(debouncedQuery);
-      setResults(searchResults);
+
+      if (hasGoogleKey) {
+        // Use Google Places Autocomplete
+        const results = await searchPlacesGoogle(debouncedQuery, sessionToken);
+        setGoogleResults(results);
+        setMapboxResults([]);
+        setUseGoogle(true);
+        setIsOpen(results.length > 0);
+      } else {
+        // Fallback to Mapbox
+        const results = await searchPlacesMapbox(debouncedQuery);
+        setMapboxResults(results);
+        setGoogleResults([]);
+        setUseGoogle(false);
+        setIsOpen(results.length > 0);
+      }
+
       setIsLoading(false);
-      setIsOpen(searchResults.length > 0);
       setSelectedIndex(-1);
     };
 
     performSearch();
-  }, [debouncedQuery]);
+  }, [debouncedQuery, hasGoogleKey, sessionToken]);
 
   // ===========================================
   // Click Outside Handler
@@ -205,13 +251,14 @@ export function GeocodingSearch({
   // ===========================================
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen || results.length === 0) return;
+    const resultsCount = useGoogle ? googleResults.length : mapboxResults.length;
+    if (!isOpen || resultsCount === 0) return;
 
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
         setSelectedIndex((prev) =>
-          prev < results.length - 1 ? prev + 1 : prev
+          prev < resultsCount - 1 ? prev + 1 : prev
         );
         break;
       case 'ArrowUp':
@@ -220,8 +267,12 @@ export function GeocodingSearch({
         break;
       case 'Enter':
         event.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < results.length) {
-          handleSelect(results[selectedIndex]);
+        if (selectedIndex >= 0 && selectedIndex < resultsCount) {
+          if (useGoogle) {
+            handleSelectGoogle(googleResults[selectedIndex]);
+          } else {
+            handleSelectMapbox(mapboxResults[selectedIndex]);
+          }
         }
         break;
       case 'Escape':
@@ -236,7 +287,34 @@ export function GeocodingSearch({
   // Selection Handler
   // ===========================================
 
-  const handleSelect = (result: GeocodingResult) => {
+  const handleSelectGoogle = async (result: SearchResult) => {
+    setQuery(result.text);
+    setIsOpen(false);
+    setIsLoading(true);
+
+    // Fetch place details to get coordinates
+    const details = await getPlaceDetails(result.placeId, sessionToken);
+    setIsLoading(false);
+
+    if (details) {
+      const geocodingResult: GeocodingResult = {
+        id: details.placeId,
+        place_name: details.formattedAddress,
+        text: details.name,
+        centre: details.coordinates,
+        place_type: details.types,
+      };
+
+      onSelect(geocodingResult);
+
+      if (onFlyTo) {
+        const zoom = getZoomForPlaceType(details.types);
+        onFlyTo(details.coordinates, zoom);
+      }
+    }
+  };
+
+  const handleSelectMapbox = (result: GeocodingResult) => {
     setQuery(result.text);
     setIsOpen(false);
     onSelect(result);
@@ -263,7 +341,8 @@ export function GeocodingSearch({
 
   const handleClear = () => {
     setQuery('');
-    setResults([]);
+    setGoogleResults([]);
+    setMapboxResults([]);
     setIsOpen(false);
     inputRef.current?.focus();
   };
@@ -282,7 +361,7 @@ export function GeocodingSearch({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => results.length > 0 && setIsOpen(true)}
+          onFocus={() => (googleResults.length > 0 || mapboxResults.length > 0) && setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="pl-10 pr-10"
@@ -305,16 +384,52 @@ export function GeocodingSearch({
         )}
       </div>
 
-      {/* Results Dropdown */}
-      {isOpen && results.length > 0 && (
+      {/* Results Dropdown - Google */}
+      {isOpen && useGoogle && googleResults.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border rounded-lg shadow-lg overflow-hidden">
           <ScrollArea className="max-h-[300px]">
             <div className="py-1">
-              {results.map((result, index) => (
+              {googleResults.map((result, index) => (
+                <button
+                  key={result.placeId}
+                  type="button"
+                  onClick={() => handleSelectGoogle(result)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                  className={cn(
+                    'w-full flex items-start gap-3 px-3 py-2 text-left transition-colors',
+                    index === selectedIndex
+                      ? 'bg-accent text-accent-foreground'
+                      : 'hover:bg-muted'
+                  )}
+                >
+                  <span className="mt-0.5 text-muted-foreground shrink-0">
+                    {getPlaceIcon(result.types)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{result.text}</div>
+                    {result.secondaryText && (
+                      <div className="text-sm text-muted-foreground truncate">
+                        {result.secondaryText}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Results Dropdown - Mapbox Fallback */}
+      {isOpen && !useGoogle && mapboxResults.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border rounded-lg shadow-lg overflow-hidden">
+          <ScrollArea className="max-h-[300px]">
+            <div className="py-1">
+              {mapboxResults.map((result, index) => (
                 <button
                   key={result.id}
                   type="button"
-                  onClick={() => handleSelect(result)}
+                  onClick={() => handleSelectMapbox(result)}
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={cn(
                     'w-full flex items-start gap-3 px-3 py-2 text-left transition-colors',
@@ -342,7 +457,7 @@ export function GeocodingSearch({
       )}
 
       {/* No Results Message */}
-      {isOpen && query.length >= 2 && !isLoading && results.length === 0 && (
+      {isOpen && query.length >= 2 && !isLoading && googleResults.length === 0 && mapboxResults.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border rounded-lg shadow-lg p-4 text-center text-sm text-muted-foreground">
           No results found for "{query}"
         </div>

@@ -178,8 +178,10 @@ function findKnownLandmark(locationName: string): [number, number] | null {
 }
 
 // ===========================================
-// Geocoding Helper
+// Geocoding Helper (using Google for accuracy)
 // ===========================================
+
+import { geocodeWithGoogle, getZoomForPlaceType, calculateZoomFromViewport } from '@/lib/google-geocoding';
 
 async function geocodeLocation(locationName: string): Promise<GeocodedLocation | null> {
   // First check known landmarks for precise coordinates
@@ -193,10 +195,20 @@ async function geocodeLocation(locationName: string): Promise<GeocodedLocation |
     };
   }
 
-  // Fall back to Mapbox geocoding
+  // Use Google Geocoding API for more accurate results
+  const googleResult = await geocodeWithGoogle(locationName);
+  if (googleResult) {
+    return {
+      name: locationName,
+      coordinates: googleResult.coordinates,
+      confidence: googleResult.confidence,
+    };
+  }
+
+  // Fall back to Mapbox geocoding if Google fails
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   if (!accessToken) {
-    console.warn('Mapbox access token not configured for geocoding');
+    console.warn('Mapbox access token not configured for geocoding fallback');
     return null;
   }
 
@@ -210,13 +222,12 @@ async function geocodeLocation(locationName: string): Promise<GeocodedLocation |
     url.searchParams.set('access_token', accessToken);
     url.searchParams.set('proximity', proximity);
     url.searchParams.set('limit', '1');
-    // Remove restrictive types filter for better results
     url.searchParams.set('language', 'en');
 
     const response = await fetch(url.toString());
 
     if (!response.ok) {
-      console.error(`Geocoding API error for "${locationName}": ${response.status}`);
+      console.error(`Mapbox geocoding API error for "${locationName}": ${response.status}`);
       return null;
     }
 
@@ -224,7 +235,7 @@ async function geocodeLocation(locationName: string): Promise<GeocodedLocation |
 
     if (data.features && data.features.length > 0) {
       const feature = data.features[0];
-      console.log(`[Geocoding] Mapbox result for "${locationName}":`, feature.center, feature.place_type);
+      console.log(`[Geocoding] Mapbox fallback for "${locationName}":`, feature.center, feature.place_type);
       return {
         name: locationName,
         coordinates: feature.center as [number, number],

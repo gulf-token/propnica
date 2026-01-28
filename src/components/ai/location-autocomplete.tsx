@@ -3,13 +3,19 @@
 /**
  * Location Autocomplete Component
  *
- * Provides location search with Mapbox geocoding suggestions.
+ * Provides location search with Google Places API (with Mapbox fallback).
  */
 
 import * as React from 'react';
 import { MapPin, Loader2, X } from 'lucide-react';
 import { Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import {
+  searchPlacesWithGoogle,
+  getPlaceDetails,
+  generateSessionToken,
+  type GooglePlaceAutocompleteResult,
+} from '@/lib/google-geocoding';
 
 // ===========================================
 // Types
@@ -34,15 +40,24 @@ interface LocationAutocompleteProps {
   disabled?: boolean;
 }
 
+// Internal type for autocomplete results before coordinate lookup
+interface AutocompleteResult {
+  placeId: string;
+  name: string;
+  description: string;
+  secondaryText: string;
+}
+
 // ===========================================
-// Hook for Mapbox Geocoding
+// Hook for Google Places Autocomplete
 // ===========================================
 
-function useMapboxGeocode(
+function useGooglePlacesGeocode(
   query: string,
-  options: { proximity?: [number, number]; country?: string }
+  options: { proximity?: [number, number]; country?: string },
+  sessionToken: string
 ) {
-  const [results, setResults] = React.useState<LocationResult[]>([]);
+  const [results, setResults] = React.useState<AutocompleteResult[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -54,79 +69,102 @@ function useMapboxGeocode(
       return;
     }
 
-    const abortController = new AbortController();
+    let cancelled = false;
 
     async function fetchResults() {
       setIsLoading(true);
       setError(null);
 
       try {
-        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-        if (!token) {
-          setError('Mapbox token not configured');
-          return;
+        const googleKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+        if (googleKey) {
+          // Use Google Places API
+          const googleResults = await searchPlacesWithGoogle(debouncedQuery, {
+            sessionToken,
+          });
+
+          if (cancelled) return;
+
+          const locations: AutocompleteResult[] = googleResults.map((result) => ({
+            placeId: result.placeId,
+            name: result.mainText,
+            description: result.description,
+            secondaryText: result.secondaryText,
+          }));
+
+          setResults(locations);
+        } else {
+          // Fallback to Mapbox
+          const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+          if (!mapboxToken) {
+            setError('No geocoding API configured');
+            return;
+          }
+
+          const params = new URLSearchParams({
+            access_token: mapboxToken,
+            limit: '5',
+          });
+
+          if (options.proximity) {
+            params.set('proximity', options.proximity.join(','));
+          }
+
+          if (options.country) {
+            params.set('country', options.country);
+          }
+
+          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+            debouncedQuery
+          )}.json?${params}`;
+
+          const response = await fetch(url);
+
+          if (cancelled) return;
+
+          if (!response.ok) {
+            throw new Error('Geocoding request failed');
+          }
+
+          const data = await response.json();
+
+          const locations: AutocompleteResult[] = data.features.map(
+            (feature: {
+              id: string;
+              text: string;
+              place_name: string;
+              center: [number, number];
+              context?: Array<{ text: string }>;
+            }) => ({
+              placeId: feature.id,
+              name: feature.text,
+              description: feature.place_name,
+              secondaryText: feature.context?.map((c) => c.text).join(', ') || '',
+              // Store coordinates in the name for fallback (hacky but needed for Mapbox flow)
+              _coordinates: feature.center,
+            })
+          );
+
+          setResults(locations);
         }
-
-        const params = new URLSearchParams({
-          access_token: token,
-          limit: '5',
-          // Note: No restrictive types filter for better landmark results
-        });
-
-        if (options.proximity) {
-          params.set('proximity', options.proximity.join(','));
-        }
-
-        if (options.country) {
-          params.set('country', options.country);
-        }
-
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-          debouncedQuery
-        )}.json?${params}`;
-
-        const response = await fetch(url, { signal: abortController.signal });
-
-        if (!response.ok) {
-          throw new Error('Geocoding request failed');
-        }
-
-        const data = await response.json();
-
-        const locations: LocationResult[] = data.features.map(
-          (feature: {
-            id: string;
-            text: string;
-            place_name: string;
-            center: [number, number];
-            context?: Array<{ text: string }>;
-          }) => ({
-            id: feature.id,
-            name: feature.text,
-            placeName: feature.place_name,
-            coordinates: feature.center,
-            context: feature.context?.map((c) => c.text).join(', '),
-          })
-        );
-
-        setResults(locations);
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          return;
-        }
+        if (cancelled) return;
         setError('Failed to fetch locations');
         setResults([]);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
     fetchResults();
 
     return () => {
-      abortController.abort();
+      cancelled = true;
     };
-  }, [debouncedQuery, options.proximity, options.country]);
+  }, [debouncedQuery, options.proximity, options.country, sessionToken]);
 
   return { results, isLoading, error };
 }
@@ -168,13 +206,17 @@ export function LocationAutocomplete({
 }: LocationAutocompleteProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(-1);
+  const [isFetchingDetails, setIsFetchingDetails] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
+  const [sessionToken] = React.useState(() => generateSessionToken());
 
-  const { results, isLoading, error } = useMapboxGeocode(value, {
+  const hasGoogleKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  const { results, isLoading, error } = useGooglePlacesGeocode(value, {
     proximity,
     country,
-  });
+  }, sessionToken);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -202,11 +244,40 @@ export function LocationAutocomplete({
     }
   };
 
-  const handleSelect = (location: LocationResult) => {
-    onChange(location.placeName);
-    onSelect(location);
+  const handleSelect = async (result: AutocompleteResult) => {
+    onChange(result.name);
     setIsOpen(false);
     setSelectedIndex(-1);
+
+    if (hasGoogleKey) {
+      // Fetch place details to get coordinates
+      setIsFetchingDetails(true);
+      try {
+        const details = await getPlaceDetails(result.placeId, sessionToken);
+        if (details) {
+          const location: LocationResult = {
+            id: details.placeId,
+            name: details.name,
+            placeName: details.formattedAddress,
+            coordinates: details.coordinates,
+            context: details.formattedAddress,
+          };
+          onSelect(location);
+        }
+      } finally {
+        setIsFetchingDetails(false);
+      }
+    } else {
+      // Mapbox fallback - coordinates are already embedded
+      const location: LocationResult = {
+        id: result.placeId,
+        name: result.name,
+        placeName: result.description,
+        coordinates: (result as any)._coordinates || [55.2708, 25.2048],
+        context: result.secondaryText,
+      };
+      onSelect(location);
+    }
   };
 
   const handleClear = () => {
@@ -244,10 +315,10 @@ export function LocationAutocomplete({
           className="pl-9 pr-8"
           disabled={disabled}
         />
-        {isLoading && (
+        {(isLoading || isFetchingDetails) && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
         )}
-        {!isLoading && value && (
+        {!isLoading && !isFetchingDetails && value && (
           <button
             onClick={handleClear}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -268,7 +339,7 @@ export function LocationAutocomplete({
           ) : (
             results.map((result, index) => (
               <li
-                key={result.id}
+                key={result.placeId}
                 onClick={() => handleSelect(result)}
                 className={cn(
                   'px-3 py-2 cursor-pointer hover:bg-muted transition-colors',
@@ -280,7 +351,7 @@ export function LocationAutocomplete({
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{result.name}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {result.placeName}
+                      {result.secondaryText || result.description}
                     </p>
                   </div>
                 </div>
