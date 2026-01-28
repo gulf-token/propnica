@@ -27,8 +27,8 @@ export const prisma =
     log: ['error', 'warn'],
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+// Cache client in globalThis to reuse across Lambda invocations
+// This is needed in BOTH development (for hot module reloading) AND production (for serverless)
+globalForPrisma.prisma = prisma;
 
 export default prisma;

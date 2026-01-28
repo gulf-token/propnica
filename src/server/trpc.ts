@@ -148,24 +148,18 @@ const isAuthed = t.middleware(async ({ ctx, next }) => {
 
   try {
     // Ensure user profile exists in the database (sync Supabase Auth with Prisma)
-    const existingProfile = await ctx.prisma.userProfile.findUnique({
+    // Use upsert to handle race conditions when multiple requests arrive simultaneously
+    // for a new user (e.g., projects.list and renders.list on dashboard load)
+    const profile = await ctx.prisma.userProfile.upsert({
       where: { userId: ctx.userId },
+      update: {}, // No updates needed if profile exists
+      create: {
+        userId: ctx.userId,
+        displayName: ctx.session.user.email?.split('@')[0] ?? null,
+        preferences: {},
+      },
     });
-
-    if (!existingProfile) {
-      // Create user profile on first access
-      console.log(`[tRPC isAuthed] Creating new profile for user ${ctx.userId}`);
-      await ctx.prisma.userProfile.create({
-        data: {
-          userId: ctx.userId,
-          displayName: ctx.session.user.email?.split('@')[0] ?? null,
-          preferences: {},
-        },
-      });
-      console.log(`[tRPC isAuthed] Created UserProfile for user ${ctx.userId}`);
-    } else {
-      console.log(`[tRPC isAuthed] Found existing profile for user ${ctx.userId}`);
-    }
+    console.log(`[tRPC isAuthed] Profile ensured for user ${ctx.userId} (id: ${profile.id})`);
   } catch (error) {
     console.error('[tRPC isAuthed] Database error:', error instanceof Error ? error.message : error);
     throw new TRPCError({
