@@ -7,6 +7,7 @@ import { useEditorStore, useProjectStore } from '@/stores';
 import { cn, formatCoordinate, interpolateCameraState } from '@/lib/utils';
 import { rotatePolygonCoordinates, rotateLineCoordinates } from '@/lib/geo-utils';
 import { Keyframe, Zone, Route, TextMarker, CameraState, MapStyle, MAP_STYLE_URLS } from '@/types';
+import { AlertCircle, MapPin } from 'lucide-react';
 
 // ===========================================
 // Constants
@@ -226,14 +227,18 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  // Check if Mapbox token is available
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+  const hasValidToken = mapboxToken && mapboxToken !== 'your-mapbox-access-token' && mapboxToken.startsWith('pk.');
+
   // ===========================================
   // Initialize Map
   // ===========================================
 
   React.useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (!mapContainerRef.current || mapRef.current || !hasValidToken) return;
 
-    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+    mapboxgl.accessToken = mapboxToken;
 
     // Get initial camera from first keyframe or use defaults
     const initialCamera = config?.keyframes[0]?.camera ?? {
@@ -1331,6 +1336,35 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   // ===========================================
   // Render
   // ===========================================
+
+  // Show error message if Mapbox token is missing
+  if (!hasValidToken) {
+    return (
+      <div className={cn('relative w-full h-full flex items-center justify-center bg-muted', className)}>
+        <div className="text-center p-8 max-w-md">
+          <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+            <MapPin className="w-8 h-8 text-destructive" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Mapbox Token Required</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            The map editor requires a Mapbox access token to display maps. Please configure the{' '}
+            <code className="px-1.5 py-0.5 bg-muted-foreground/10 rounded text-xs">
+              NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+            </code>{' '}
+            environment variable.
+          </p>
+          <div className="text-xs text-muted-foreground bg-muted-foreground/5 rounded-lg p-3 text-left">
+            <p className="font-medium mb-1">To get a token:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Go to <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">account.mapbox.com</a></li>
+              <li>Create or copy your public access token</li>
+              <li>Add it to your environment variables</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('relative w-full h-full', className)}>
