@@ -28,11 +28,14 @@ export async function GET() {
       authCookieNames: authCookies.map((c) => c.name),
     };
 
-    // Check env vars
+    // Check env vars at runtime (force evaluation by accessing as string)
+    const dbUrl = String(process.env.DATABASE_URL || '');
     results.env = {
       NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      DATABASE_URL: !!process.env.DATABASE_URL,
+      DATABASE_URL: dbUrl.length > 0,
+      DATABASE_URL_PREFIX: dbUrl ? dbUrl.slice(0, 20) + '...' : 'NOT_SET',
+      NODE_ENV: process.env.NODE_ENV,
     };
 
     // Test database connectivity (no auth required)
