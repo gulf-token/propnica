@@ -143,7 +143,7 @@ async function geocodeAllLocations(
 // Types
 // ===========================================
 
-type WizardStep = 'input' | 'processing' | 'review' | 'creating';
+type WizardStep = 'input' | 'processing' | 'review' | 'creating' | 'success';
 
 interface AIProjectGeneratorProps {
   open: boolean;
@@ -159,7 +159,8 @@ const STEPS = [
   { id: 'input', label: 'Script', icon: FileText },
   { id: 'processing', label: 'Process', icon: Wand2 },
   { id: 'review', label: 'Review', icon: Table },
-  { id: 'creating', label: 'Create', icon: CheckCircle },
+  { id: 'creating', label: 'Create', icon: Loader2 },
+  { id: 'success', label: 'Done', icon: CheckCircle },
 ] as const;
 
 function StepIndicator({ currentStep }: { currentStep: WizardStep }) {
@@ -611,6 +612,53 @@ function ReviewStep({
 }
 
 // ===========================================
+// Step 4: Success
+// ===========================================
+
+interface SuccessStepProps {
+  projectId: string | null;
+  projectName: string;
+  onOpenEditor: () => void;
+  onContinueEditing: () => void;
+  onCreateAnother: () => void;
+}
+
+function SuccessStep({
+  projectId,
+  projectName,
+  onOpenEditor,
+  onContinueEditing,
+  onCreateAnother,
+}: SuccessStepProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8">
+      <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
+        <CheckCircle className="w-8 h-8 text-green-500" />
+      </div>
+      <h3 className="text-lg font-semibold mb-2">Project Created!</h3>
+      <p className="text-sm text-muted-foreground text-center mb-6 max-w-md">
+        Your project "{projectName}" has been created successfully. What would you like to do next?
+      </p>
+
+      <div className="flex flex-col gap-3 w-full max-w-xs">
+        <Button onClick={onOpenEditor} className="w-full">
+          <ArrowRight className="w-4 h-4 mr-2" />
+          Open in Editor
+        </Button>
+        <Button variant="outline" onClick={onContinueEditing} className="w-full">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Continue Editing Timeline
+        </Button>
+        <Button variant="ghost" onClick={onCreateAnother} className="w-full">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Create Another Project
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
 // Main Component
 // ===========================================
 
@@ -634,13 +682,14 @@ export function AIProjectGenerator({
   const [error, setError] = React.useState<string | null>(null);
   const [parsedScript, setParsedScript] = React.useState<ParsedScript | null>(null);
   const [projectConfig, setProjectConfig] = React.useState<ProjectConfig | null>(null);
+  const [createdProjectId, setCreatedProjectId] = React.useState<string | null>(null);
 
   // tRPC mutation for creating project
   const createProject = trpc.projects.create.useMutation({
     onSuccess: (project) => {
+      setCreatedProjectId(project.id);
       onProjectCreated?.(project.id);
-      onOpenChange(false);
-      router.push(`/editor/${project.id}`);
+      setStep('success');
     },
     onError: (error) => {
       setError(error.message);
@@ -719,8 +768,30 @@ export function AIProjectGenerator({
     setScript('');
     setParsedScript(null);
     setProjectConfig(null);
+    setCreatedProjectId(null);
     setError(null);
     onOpenChange(false);
+  };
+
+  // Success step handlers
+  const handleOpenEditor = () => {
+    if (createdProjectId) {
+      onOpenChange(false);
+      router.push(`/editor/${createdProjectId}`);
+    }
+  };
+
+  const handleContinueEditing = () => {
+    setStep('review');
+  };
+
+  const handleCreateAnother = () => {
+    setStep('input');
+    setScript('');
+    setParsedScript(null);
+    setProjectConfig(null);
+    setCreatedProjectId(null);
+    setError(null);
   };
 
   return (
@@ -777,6 +848,16 @@ export function AIProjectGenerator({
               Please wait while we set everything up...
             </p>
           </div>
+        )}
+
+        {step === 'success' && (
+          <SuccessStep
+            projectId={createdProjectId}
+            projectName={parsedScript?.title || 'AI Generated Project'}
+            onOpenEditor={handleOpenEditor}
+            onContinueEditing={handleContinueEditing}
+            onCreateAnother={handleCreateAnother}
+          />
         )}
       </DialogContent>
     </Dialog>
