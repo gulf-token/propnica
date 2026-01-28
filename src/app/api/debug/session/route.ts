@@ -35,6 +35,21 @@ export async function GET() {
       DATABASE_URL: !!process.env.DATABASE_URL,
     };
 
+    // Test database connectivity (no auth required)
+    try {
+      const dbResult = await prisma.$queryRaw`SELECT 1 as test`;
+      results.databaseConnection = {
+        status: 'connected',
+        test: dbResult,
+      };
+    } catch (dbConnError) {
+      results.databaseConnection = {
+        status: 'error',
+        error: dbConnError instanceof Error ? dbConnError.message : String(dbConnError),
+        stack: dbConnError instanceof Error ? dbConnError.stack?.slice(0, 500) : undefined,
+      };
+    }
+
     // Create Supabase client
     const supabase = createServerComponentClient({ cookies: () => cookieStore });
     results.supabaseClient = 'created';
