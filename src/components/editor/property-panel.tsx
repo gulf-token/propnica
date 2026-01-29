@@ -12,6 +12,7 @@ import {
   Unlock,
   Archive,
   RotateCw,
+  HelpCircle,
 } from 'lucide-react';
 import { useEditorStore, useProjectStore } from '@/stores';
 import { cn } from '@/lib/utils';
@@ -93,18 +94,48 @@ function Section({ title, defaultOpen = true, children }: SectionProps) {
 }
 
 // ===========================================
+// Info Tooltip Component
+// ===========================================
+
+interface InfoTooltipProps {
+  content: string;
+}
+
+function InfoTooltip({ content }: InfoTooltipProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center justify-center h-4 w-4 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <HelpCircle className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[200px] text-xs">
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ===========================================
 // Property Row Component
 // ===========================================
 
 interface PropertyRowProps {
   label: string;
   children: React.ReactNode;
+  tooltip?: string;
 }
 
-function PropertyRow({ label, children }: PropertyRowProps) {
+function PropertyRow({ label, children, tooltip }: PropertyRowProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label className="text-xs text-muted-foreground shrink-0">{label}</Label>
+      <div className="flex items-center gap-1 shrink-0">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        {tooltip && <InfoTooltip content={tooltip} />}
+      </div>
       <div className="flex-1 max-w-[140px]">{children}</div>
     </div>
   );
@@ -422,7 +453,7 @@ function KeyframeProperties() {
 
         {/* Timing */}
         <Section title="Timing">
-          <PropertyRow label="Time">
+          <PropertyRow label="Time" tooltip="When this keyframe starts in the video timeline (in seconds)">
             <Input
               type="number"
               value={keyframe.time}
@@ -434,7 +465,7 @@ function KeyframeProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Duration">
+          <PropertyRow label="Duration" tooltip="How long the camera holds at this position before transitioning to the next keyframe">
             <Input
               type="number"
               value={keyframe.duration}
@@ -448,7 +479,7 @@ function KeyframeProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Easing">
+          <PropertyRow label="Easing" tooltip="How the camera transitions to this keyframe. Linear is constant speed, ease options create smoother motion">
             <Select
               value={keyframe.easing}
               onValueChange={(value) =>
@@ -471,7 +502,7 @@ function KeyframeProperties() {
 
         {/* Camera Position */}
         <Section title="Camera Position">
-          <PropertyRow label="Longitude">
+          <PropertyRow label="Longitude" tooltip="East-west position. Positive values are east of Prime Meridian">
             <Input
               type="number"
               value={keyframe.camera.centre[0].toFixed(6)}
@@ -487,7 +518,7 @@ function KeyframeProperties() {
               className="h-8 text-xs font-mono"
             />
           </PropertyRow>
-          <PropertyRow label="Latitude">
+          <PropertyRow label="Latitude" tooltip="North-south position. Positive values are north of Equator">
             <Input
               type="number"
               value={keyframe.camera.centre[1].toFixed(6)}
@@ -503,7 +534,7 @@ function KeyframeProperties() {
               className="h-8 text-xs font-mono"
             />
           </PropertyRow>
-          <PropertyRow label="Zoom">
+          <PropertyRow label="Zoom" tooltip="Camera zoom level (0-22). Higher values zoom in closer to the ground">
             <Input
               type="number"
               value={keyframe.camera.zoom.toFixed(2)}
@@ -521,7 +552,7 @@ function KeyframeProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Bearing">
+          <PropertyRow label="Bearing" tooltip="Camera rotation in degrees. 0 = North, 90 = East, 180 = South, -90 = West">
             <Input
               type="number"
               value={keyframe.camera.bearing.toFixed(1)}
@@ -539,7 +570,7 @@ function KeyframeProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Pitch">
+          <PropertyRow label="Pitch" tooltip="Camera tilt angle (0-85). 0 = straight down, 60+ = horizon view">
             <Input
               type="number"
               value={keyframe.camera.pitch.toFixed(1)}
@@ -617,7 +648,7 @@ function ZoneProperties() {
 
         {/* Style */}
         <Section title="Style">
-          <PropertyRow label="Fill Colour">
+          <PropertyRow label="Fill Colour" tooltip="The interior colour of the zone polygon">
             <ColourPicker
               value={zone.style.fillColour}
               onChange={(value) => {
@@ -628,7 +659,7 @@ function ZoneProperties() {
               }}
             />
           </PropertyRow>
-          <PropertyRow label="Fill Opacity">
+          <PropertyRow label="Fill Opacity" tooltip="Transparency of the fill. 0% = invisible, 100% = solid">
             <div className="flex items-center gap-2">
               <Slider
                 value={[zone.style.fillOpacity]}
@@ -648,7 +679,7 @@ function ZoneProperties() {
               </span>
             </div>
           </PropertyRow>
-          <PropertyRow label="Stroke Colour">
+          <PropertyRow label="Stroke Colour" tooltip="The border/outline colour around the zone">
             <ColourPicker
               value={zone.style.strokeColour}
               onChange={(value) => {
@@ -659,7 +690,7 @@ function ZoneProperties() {
               }}
             />
           </PropertyRow>
-          <PropertyRow label="Stroke Width">
+          <PropertyRow label="Stroke Width" tooltip="Thickness of the border in pixels">
             <Input
               type="number"
               value={zone.style.strokeWidth}
@@ -676,7 +707,7 @@ function ZoneProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Stroke Opacity">
+          <PropertyRow label="Stroke Opacity" tooltip="Transparency of the border. 0% = invisible, 100% = solid">
             <div className="flex items-center gap-2">
               <Slider
                 value={[zone.style.strokeOpacity ?? 1]}
@@ -699,7 +730,7 @@ function ZoneProperties() {
 
         {/* Transform */}
         <Section title="Transform">
-          <PropertyRow label="Rotation">
+          <PropertyRow label="Rotation" tooltip="Rotate the zone around its centre point (in degrees)">
             <RotationControl
               value={zone.style.rotation ?? 0}
               onChange={(value) =>
@@ -713,7 +744,7 @@ function ZoneProperties() {
 
         {/* Timing */}
         <Section title="Timing">
-          <PropertyRow label="Start Time">
+          <PropertyRow label="Start Time" tooltip="When this zone first appears in the video (in seconds)">
             <Input
               type="number"
               value={zone.timing.startTime}
@@ -727,7 +758,7 @@ function ZoneProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="End Time">
+          <PropertyRow label="End Time" tooltip="When this zone disappears from the video (in seconds)">
             <Input
               type="number"
               value={zone.timing.endTime}
@@ -744,7 +775,7 @@ function ZoneProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fade In">
+          <PropertyRow label="Fade In" tooltip="Duration of fade-in effect when zone appears (in seconds). 0 = instant">
             <Input
               type="number"
               value={zone.timing.fadeInDuration}
@@ -761,7 +792,7 @@ function ZoneProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fade Out">
+          <PropertyRow label="Fade Out" tooltip="Duration of fade-out effect when zone disappears (in seconds). 0 = instant">
             <Input
               type="number"
               value={zone.timing.fadeOutDuration}
@@ -782,7 +813,7 @@ function ZoneProperties() {
 
         {/* Animation Effects */}
         <Section title="Animation Effects" defaultOpen={false}>
-          <PropertyRow label="Fill Animation">
+          <PropertyRow label="Fill Animation" tooltip="How the zone fill appears. Fade In smoothly appears, Expand grows from centre/edge, Wipe reveals directionally">
             <Select
               value={zone.animationConfig?.fillAnimation || 'fadeIn'}
               onValueChange={(value: ZoneFillAnimation) =>
@@ -807,7 +838,7 @@ function ZoneProperties() {
               </SelectContent>
             </Select>
           </PropertyRow>
-          <PropertyRow label="Fill Duration">
+          <PropertyRow label="Fill Duration" tooltip="How long the fill animation takes to complete (in seconds)">
             <Input
               type="number"
               value={zone.animationConfig?.fillDuration ?? 0.5}
@@ -826,7 +857,7 @@ function ZoneProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fill Easing">
+          <PropertyRow label="Fill Easing" tooltip="Animation speed curve. Ease Out starts fast and slows down, Ease In does the opposite">
             <Select
               value={zone.animationConfig?.fillEasing || 'easeOutCubic'}
               onValueChange={(value: AnimationEasing) =>
@@ -852,7 +883,7 @@ function ZoneProperties() {
             </Select>
           </PropertyRow>
           <Separator className="my-2" />
-          <PropertyRow label="Stroke Animation">
+          <PropertyRow label="Stroke Animation" tooltip="How the border appears. Draw animates like a pen drawing, Dash Move creates flowing dashes">
             <Select
               value={zone.animationConfig?.strokeAnimation || 'instant'}
               onValueChange={(value: ZoneStrokeAnimation) =>
@@ -877,7 +908,7 @@ function ZoneProperties() {
               </SelectContent>
             </Select>
           </PropertyRow>
-          <PropertyRow label="Stroke Duration">
+          <PropertyRow label="Stroke Duration" tooltip="How long the stroke animation takes to complete (in seconds)">
             <Input
               type="number"
               value={zone.animationConfig?.strokeDuration ?? 0.5}
@@ -897,7 +928,7 @@ function ZoneProperties() {
             />
           </PropertyRow>
           <Separator className="my-2" />
-          <PropertyRow label="Pulse Effect">
+          <PropertyRow label="Pulse Effect" tooltip="Add a continuous pulsing glow effect to make the zone stand out">
             <Switch
               checked={zone.animationConfig?.pulseEnabled ?? false}
               onCheckedChange={(checked) =>
@@ -912,7 +943,7 @@ function ZoneProperties() {
             />
           </PropertyRow>
           {zone.animationConfig?.pulseEnabled && (
-            <PropertyRow label="Pulse Duration">
+            <PropertyRow label="Pulse Duration" tooltip="Time for one complete pulse cycle (in seconds)">
               <Input
                 type="number"
                 value={zone.animationConfig?.pulseDuration ?? 2}
@@ -1035,7 +1066,7 @@ function RouteProperties() {
 
         {/* Style */}
         <Section title="Style">
-          <PropertyRow label="Colour">
+          <PropertyRow label="Colour" tooltip="The colour of the route line">
             <ColourPicker
               value={route.style.colour}
               onChange={(value) => {
@@ -1046,7 +1077,7 @@ function RouteProperties() {
               }}
             />
           </PropertyRow>
-          <PropertyRow label="Width">
+          <PropertyRow label="Width" tooltip="Thickness of the route line in pixels">
             <Input
               type="number"
               value={route.style.width}
@@ -1063,7 +1094,7 @@ function RouteProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Opacity">
+          <PropertyRow label="Opacity" tooltip="Transparency of the route. 0% = invisible, 100% = solid">
             <div className="flex items-center gap-2">
               <Slider
                 value={[route.style.opacity ?? 1]}
@@ -1087,7 +1118,7 @@ function RouteProperties() {
 
         {/* Outline (for visibility on satellite) */}
         <Section title="Outline" defaultOpen={false}>
-          <PropertyRow label="Outline Colour">
+          <PropertyRow label="Outline Colour" tooltip="Border colour around the route. Useful for visibility on satellite imagery">
             <ColourPicker
               value={route.style.outlineColour || '#FFFFFF'}
               onChange={(value) =>
@@ -1097,7 +1128,7 @@ function RouteProperties() {
               }
             />
           </PropertyRow>
-          <PropertyRow label="Outline Width">
+          <PropertyRow label="Outline Width" tooltip="Thickness of the outline border in pixels. 0 = no outline">
             <Input
               type="number"
               value={route.style.outlineWidth ?? 0}
@@ -1112,7 +1143,7 @@ function RouteProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Outline Opacity">
+          <PropertyRow label="Outline Opacity" tooltip="Transparency of the outline. 0% = invisible, 100% = solid">
             <div className="flex items-center gap-2">
               <Slider
                 value={[route.style.outlineOpacity ?? 1]}
@@ -1135,7 +1166,7 @@ function RouteProperties() {
 
         {/* Transform */}
         <Section title="Transform">
-          <PropertyRow label="Rotation">
+          <PropertyRow label="Rotation" tooltip="Rotate the route around its centre point (in degrees)">
             <RotationControl
               value={route.style.rotation ?? 0}
               onChange={(value) =>
@@ -1149,7 +1180,7 @@ function RouteProperties() {
 
         {/* Timing */}
         <Section title="Timing">
-          <PropertyRow label="Start Time">
+          <PropertyRow label="Start Time" tooltip="When this route first appears in the video (in seconds)">
             <Input
               type="number"
               value={route.timing.startTime}
@@ -1163,7 +1194,7 @@ function RouteProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="End Time">
+          <PropertyRow label="End Time" tooltip="When this route disappears from the video (in seconds)">
             <Input
               type="number"
               value={route.timing.endTime}
@@ -1177,7 +1208,7 @@ function RouteProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fade In">
+          <PropertyRow label="Fade In" tooltip="Duration of fade-in effect when route appears (in seconds). 0 = instant">
             <Input
               type="number"
               value={route.timing.fadeInDuration}
@@ -1194,7 +1225,7 @@ function RouteProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fade Out">
+          <PropertyRow label="Fade Out" tooltip="Duration of fade-out effect when route disappears (in seconds). 0 = instant">
             <Input
               type="number"
               value={route.timing.fadeOutDuration}
@@ -1215,7 +1246,7 @@ function RouteProperties() {
 
         {/* Animation Effects */}
         <Section title="Animation Effects" defaultOpen={false}>
-          <PropertyRow label="Draw Animation">
+          <PropertyRow label="Draw Animation" tooltip="Animate the route like it's being drawn with a pen">
             <Switch
               checked={route.animationConfig?.drawEnabled ?? true}
               onCheckedChange={(checked) =>
@@ -1231,7 +1262,7 @@ function RouteProperties() {
           </PropertyRow>
           {(route.animationConfig?.drawEnabled ?? true) && (
             <>
-              <PropertyRow label="Draw Duration">
+              <PropertyRow label="Draw Duration" tooltip="How long it takes to draw the complete route (in seconds)">
                 <Input
                   type="number"
                   value={route.animationConfig?.drawDuration ?? 2}
@@ -1250,7 +1281,7 @@ function RouteProperties() {
                   className="h-8 text-xs"
                 />
               </PropertyRow>
-              <PropertyRow label="Draw Style">
+              <PropertyRow label="Draw Style" tooltip="Visual style of the line. Dashed/Dotted create animated patterns, Gradient adds colour transition">
                 <Select
                   value={route.animationConfig?.drawStyle || 'solid'}
                   onValueChange={(value: RouteDrawStyle) =>
@@ -1275,7 +1306,7 @@ function RouteProperties() {
                   </SelectContent>
                 </Select>
               </PropertyRow>
-              <PropertyRow label="Draw Direction">
+              <PropertyRow label="Draw Direction" tooltip="Direction of the draw animation. From Middle draws outward in both directions">
                 <Select
                   value={route.animationConfig?.drawDirection || 'startToEnd'}
                   onValueChange={(value: RouteDrawDirection) =>
@@ -1300,7 +1331,7 @@ function RouteProperties() {
                   </SelectContent>
                 </Select>
               </PropertyRow>
-              <PropertyRow label="Draw Easing">
+              <PropertyRow label="Draw Easing" tooltip="Animation speed curve. Ease Out starts fast and decelerates smoothly">
                 <Select
                   value={route.animationConfig?.drawEasing || 'easeOutCubic'}
                   onValueChange={(value: AnimationEasing) =>
@@ -1328,7 +1359,7 @@ function RouteProperties() {
             </>
           )}
           <Separator className="my-2" />
-          <PropertyRow label="Trail Effect">
+          <PropertyRow label="Trail Effect" tooltip="Add a fading trail behind the route as it draws">
             <Switch
               checked={route.animationConfig?.trailEnabled ?? false}
               onCheckedChange={(checked) =>
@@ -1344,7 +1375,7 @@ function RouteProperties() {
           </PropertyRow>
           {route.animationConfig?.trailEnabled && (
             <>
-              <PropertyRow label="Trail Colour">
+              <PropertyRow label="Trail Colour" tooltip="Colour of the trailing effect">
                 <ColourPicker
                   value={route.animationConfig?.trailColour || route.style.colour}
                   onChange={(value) =>
@@ -1358,7 +1389,7 @@ function RouteProperties() {
                   }
                 />
               </PropertyRow>
-              <PropertyRow label="Trail Length">
+              <PropertyRow label="Trail Length" tooltip="How far the trail extends behind the drawing tip (as % of total route)">
                 <div className="flex items-center gap-2">
                   <Slider
                     value={[route.animationConfig?.trailLength ?? 0.3]}
@@ -1384,7 +1415,7 @@ function RouteProperties() {
             </>
           )}
           <Separator className="my-2" />
-          <PropertyRow label="Glow Effect">
+          <PropertyRow label="Glow Effect" tooltip="Add a soft glow around the route line">
             <Switch
               checked={route.animationConfig?.glowEnabled ?? false}
               onCheckedChange={(checked) =>
@@ -1400,7 +1431,7 @@ function RouteProperties() {
           </PropertyRow>
           {route.animationConfig?.glowEnabled && (
             <>
-              <PropertyRow label="Glow Colour">
+              <PropertyRow label="Glow Colour" tooltip="Colour of the glow effect">
                 <ColourPicker
                   value={route.animationConfig?.glowColour || route.style.colour}
                   onChange={(value) =>
@@ -1414,7 +1445,7 @@ function RouteProperties() {
                   }
                 />
               </PropertyRow>
-              <PropertyRow label="Glow Intensity">
+              <PropertyRow label="Glow Intensity" tooltip="Brightness and spread of the glow effect">
                 <div className="flex items-center gap-2">
                   <Slider
                     value={[route.animationConfig?.glowIntensity ?? 0.5]}
@@ -1440,7 +1471,7 @@ function RouteProperties() {
             </>
           )}
           <Separator className="my-2" />
-          <PropertyRow label="Pulse Effect">
+          <PropertyRow label="Pulse Effect" tooltip="Add a continuous pulsing glow effect to the route">
             <Switch
               checked={route.animationConfig?.pulseEnabled ?? false}
               onCheckedChange={(checked) =>
@@ -1455,7 +1486,7 @@ function RouteProperties() {
             />
           </PropertyRow>
           {route.animationConfig?.pulseEnabled && (
-            <PropertyRow label="Pulse Duration">
+            <PropertyRow label="Pulse Duration" tooltip="Time for one complete pulse cycle (in seconds)">
               <Input
                 type="number"
                 value={route.animationConfig?.pulseDuration ?? 2}
@@ -1535,7 +1566,7 @@ function TextMarkerProperties() {
 
         {/* Position */}
         <Section title="Position">
-          <PropertyRow label="Longitude">
+          <PropertyRow label="Longitude" tooltip="East-west position. The marker will be placed at this coordinate">
             <Input
               type="number"
               value={textMarker.position[0].toFixed(6)}
@@ -1548,7 +1579,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs font-mono"
             />
           </PropertyRow>
-          <PropertyRow label="Latitude">
+          <PropertyRow label="Latitude" tooltip="North-south position. The marker will be placed at this coordinate">
             <Input
               type="number"
               value={textMarker.position[1].toFixed(6)}
@@ -1565,7 +1596,7 @@ function TextMarkerProperties() {
 
         {/* Style */}
         <Section title="Style">
-          <PropertyRow label="Font Size">
+          <PropertyRow label="Font Size" tooltip="Size of the text in pixels">
             <Input
               type="number"
               value={textMarker.style.fontSize}
@@ -1579,7 +1610,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Font Colour">
+          <PropertyRow label="Font Colour" tooltip="Colour of the text">
             <ColourPicker
               value={textMarker.style.fontColour}
               onChange={(value) => {
@@ -1590,7 +1621,7 @@ function TextMarkerProperties() {
               }}
             />
           </PropertyRow>
-          <PropertyRow label="Background">
+          <PropertyRow label="Background" tooltip="Background colour of the text box">
             <ColourPicker
               value={textMarker.style.backgroundColour || 'rgba(0,0,0,0.8)'}
               onChange={(value) => {
@@ -1601,7 +1632,7 @@ function TextMarkerProperties() {
               }}
             />
           </PropertyRow>
-          <PropertyRow label="Bg Opacity">
+          <PropertyRow label="Bg Opacity" tooltip="Transparency of the background. 0% = invisible, 100% = solid">
             <div className="flex items-center gap-2">
               <Slider
                 value={[textMarker.style.backgroundOpacity ?? 0.9]}
@@ -1620,7 +1651,7 @@ function TextMarkerProperties() {
               </span>
             </div>
           </PropertyRow>
-          <PropertyRow label="Border Colour">
+          <PropertyRow label="Border Colour" tooltip="Colour of the border around the text box">
             <ColourPicker
               value={textMarker.style.borderColour || '#000000'}
               onChange={(value) =>
@@ -1630,7 +1661,7 @@ function TextMarkerProperties() {
               }
             />
           </PropertyRow>
-          <PropertyRow label="Border Width">
+          <PropertyRow label="Border Width" tooltip="Thickness of the border in pixels. 0 = no border">
             <Input
               type="number"
               value={textMarker.style.borderWidth ?? 0}
@@ -1649,7 +1680,7 @@ function TextMarkerProperties() {
 
         {/* Transform */}
         <Section title="Transform">
-          <PropertyRow label="Rotation">
+          <PropertyRow label="Rotation" tooltip="Rotate the text marker around its anchor point (in degrees)">
             <RotationControl
               value={textMarker.style.rotation ?? 0}
               onChange={(value) =>
@@ -1663,7 +1694,7 @@ function TextMarkerProperties() {
 
         {/* Timing */}
         <Section title="Timing">
-          <PropertyRow label="Start Time">
+          <PropertyRow label="Start Time" tooltip="When this text marker first appears in the video (in seconds)">
             <Input
               type="number"
               value={textMarker.timing.startTime}
@@ -1677,7 +1708,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="End Time">
+          <PropertyRow label="End Time" tooltip="When this text marker disappears from the video (in seconds)">
             <Input
               type="number"
               value={textMarker.timing.endTime}
@@ -1691,7 +1722,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fade In">
+          <PropertyRow label="Fade In" tooltip="Duration of fade-in effect when text appears (in seconds). 0 = instant">
             <Input
               type="number"
               value={textMarker.timing.fadeInDuration}
@@ -1708,7 +1739,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Fade Out">
+          <PropertyRow label="Fade Out" tooltip="Duration of fade-out effect when text disappears (in seconds). 0 = instant">
             <Input
               type="number"
               value={textMarker.timing.fadeOutDuration}
@@ -1729,7 +1760,7 @@ function TextMarkerProperties() {
 
         {/* Animation Effects */}
         <Section title="Animation Effects" defaultOpen={false}>
-          <PropertyRow label="Entry Animation">
+          <PropertyRow label="Entry Animation" tooltip="How the text appears. Typewriter types letter by letter, Scale Up grows from small">
             <Select
               value={textMarker.animationConfig?.entryAnimation || 'fadeIn'}
               onValueChange={(value: TextEntryAnimation) =>
@@ -1754,7 +1785,7 @@ function TextMarkerProperties() {
               </SelectContent>
             </Select>
           </PropertyRow>
-          <PropertyRow label="Entry Duration">
+          <PropertyRow label="Entry Duration" tooltip="How long the entry animation takes (in seconds)">
             <Input
               type="number"
               value={textMarker.animationConfig?.entryDuration ?? 0.5}
@@ -1773,7 +1804,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Entry Easing">
+          <PropertyRow label="Entry Easing" tooltip="Animation speed curve for the entry effect">
             <Select
               value={textMarker.animationConfig?.entryEasing || 'easeOutCubic'}
               onValueChange={(value: AnimationEasing) =>
@@ -1799,7 +1830,7 @@ function TextMarkerProperties() {
             </Select>
           </PropertyRow>
           <Separator className="my-2" />
-          <PropertyRow label="Exit Animation">
+          <PropertyRow label="Exit Animation" tooltip="How the text disappears. Scale Down shrinks away, Slide moves off screen">
             <Select
               value={textMarker.animationConfig?.exitType || 'fadeOut'}
               onValueChange={(value: ExitAnimationType) =>
@@ -1824,7 +1855,7 @@ function TextMarkerProperties() {
               </SelectContent>
             </Select>
           </PropertyRow>
-          <PropertyRow label="Exit Duration">
+          <PropertyRow label="Exit Duration" tooltip="How long the exit animation takes (in seconds)">
             <Input
               type="number"
               value={textMarker.animationConfig?.exitDuration ?? 0.5}
@@ -1843,7 +1874,7 @@ function TextMarkerProperties() {
               className="h-8 text-xs"
             />
           </PropertyRow>
-          <PropertyRow label="Exit Easing">
+          <PropertyRow label="Exit Easing" tooltip="Animation speed curve for the exit effect">
             <Select
               value={textMarker.animationConfig?.exitEasing || 'easeInCubic'}
               onValueChange={(value: AnimationEasing) =>

@@ -234,8 +234,10 @@ interface AIProjectGeneratorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectCreated?: (projectId: string) => void;
+  onProjectUpdated?: (config: ProjectConfig) => void; // Called when updating existing project
   initialScript?: string;
   editMode?: boolean; // When true, shows "Update" instead of "Create"
+  projectId?: string; // Required for edit mode to update existing project
 }
 
 // ===========================================
@@ -531,6 +533,7 @@ interface ReviewStepProps {
   onBack: () => void;
   onRegenerate: () => void;
   onCreate: () => void;
+  editMode?: boolean;
 }
 
 function ReviewStep({
@@ -542,6 +545,7 @@ function ReviewStep({
   onBack,
   onRegenerate,
   onCreate,
+  editMode = false,
 }: ReviewStepProps) {
   const [selectedItemId, setSelectedItemId] = React.useState<string | undefined>();
   const [activeTab, setActiveTab] = React.useState<'timeline' | 'script'>('timeline');
@@ -654,7 +658,7 @@ function ReviewStep({
           </Button>
           <Button onClick={onCreate} className="bg-green-600 hover:bg-green-700">
             <CheckCircle className="w-4 h-4 mr-2" />
-            Create Project
+            {editMode ? 'Update Project' : 'Create Project'}
           </Button>
         </div>
       </div>
@@ -735,7 +739,7 @@ function ReviewStep({
         </Button>
         <Button onClick={onCreate} className="bg-green-600 hover:bg-green-700">
           <CheckCircle className="w-4 h-4 mr-2" />
-          Create Project
+          {editMode ? 'Update Project' : 'Create Project'}
         </Button>
       </div>
     </div>
@@ -752,6 +756,8 @@ interface SuccessStepProps {
   onOpenEditor: () => void;
   onContinueEditing: () => void;
   onCreateAnother: () => void;
+  onClose: () => void;
+  editMode?: boolean;
 }
 
 function SuccessStep({
@@ -760,30 +766,51 @@ function SuccessStep({
   onOpenEditor,
   onContinueEditing,
   onCreateAnother,
+  onClose,
+  editMode = false,
 }: SuccessStepProps) {
   return (
     <div className="flex flex-col items-center justify-center py-8">
       <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
         <CheckCircle className="w-8 h-8 text-green-500" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">Project Created!</h3>
+      <h3 className="text-lg font-semibold mb-2">
+        {editMode ? 'Project Updated!' : 'Project Created!'}
+      </h3>
       <p className="text-sm text-muted-foreground text-center mb-6 max-w-md">
-        Your project "{projectName}" has been created successfully. What would you like to do next?
+        {editMode
+          ? `Your project "${projectName}" has been updated with the new script. The changes have been applied to the editor.`
+          : `Your project "${projectName}" has been created successfully. What would you like to do next?`}
       </p>
 
       <div className="flex flex-col gap-3 w-full max-w-xs">
-        <Button onClick={onOpenEditor} className="w-full">
-          <ArrowRight className="w-4 h-4 mr-2" />
-          Open in Editor
-        </Button>
-        <Button variant="outline" onClick={onContinueEditing} className="w-full">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Continue Editing Timeline
-        </Button>
-        <Button variant="ghost" onClick={onCreateAnother} className="w-full">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Create Another Project
-        </Button>
+        {editMode ? (
+          <>
+            <Button onClick={onClose} className="w-full">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Done - Return to Editor
+            </Button>
+            <Button variant="outline" onClick={onContinueEditing} className="w-full">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Make More Changes to Script
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button onClick={onOpenEditor} className="w-full">
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Open in Editor
+            </Button>
+            <Button variant="outline" onClick={onContinueEditing} className="w-full">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Continue Editing Timeline
+            </Button>
+            <Button variant="ghost" onClick={onCreateAnother} className="w-full">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Create Another Project
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -797,8 +824,10 @@ export function AIProjectGenerator({
   open,
   onOpenChange,
   onProjectCreated,
+  onProjectUpdated,
   initialScript = '',
   editMode = false,
+  projectId,
 }: AIProjectGeneratorProps) {
   const router = useRouter();
 
@@ -903,7 +932,7 @@ export function AIProjectGenerator({
     }
   };
 
-  // Create the project
+  // Create or update the project
   const handleCreate = () => {
     if (!projectConfig || !parsedScript) return;
 
@@ -917,12 +946,20 @@ export function AIProjectGenerator({
       },
     };
 
-    setStep('creating');
-    createProject.mutate({
-      name: parsedScript.title || 'AI Generated Project',
-      description: parsedScript.description || script.slice(0, 200),
-      config: configWithMetadata,
-    });
+    if (editMode && onProjectUpdated) {
+      // Update existing project - just apply the new config
+      onProjectUpdated(configWithMetadata);
+      setStep('success');
+      setCreatedProjectId(projectId || null);
+    } else {
+      // Create new project
+      setStep('creating');
+      createProject.mutate({
+        name: parsedScript.title || 'AI Generated Project',
+        description: parsedScript.description || script.slice(0, 200),
+        config: configWithMetadata,
+      });
+    }
   };
 
   // Reset wizard
@@ -1006,13 +1043,16 @@ export function AIProjectGenerator({
             onBack={() => setStep('input')}
             onRegenerate={parseWithAI}
             onCreate={handleCreate}
+            editMode={editMode}
           />
         )}
 
         {step === 'creating' && (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-            <h3 className="text-lg font-semibold">Creating Your Project</h3>
+            <h3 className="text-lg font-semibold">
+              {editMode ? 'Updating Your Project' : 'Creating Your Project'}
+            </h3>
             <p className="text-sm text-muted-foreground">
               Please wait while we set everything up...
             </p>
@@ -1026,6 +1066,8 @@ export function AIProjectGenerator({
             onOpenEditor={handleOpenEditor}
             onContinueEditing={handleContinueEditing}
             onCreateAnother={handleCreateAnother}
+            onClose={handleClose}
+            editMode={editMode}
           />
         )}
       </DialogContent>

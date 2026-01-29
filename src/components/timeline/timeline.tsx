@@ -103,6 +103,37 @@ function toTimedItems(items: (Zone | Route | TextMarker)[]): TimedItem[] {
 }
 
 // ===========================================
+// Geometry Utilities for FlyTo
+// ===========================================
+
+/**
+ * Calculate the centroid of a polygon (zone)
+ */
+function calculatePolygonCentroid(coordinates: [number, number][]): [number, number] {
+  if (coordinates.length === 0) return [0, 0];
+
+  let sumLng = 0;
+  let sumLat = 0;
+  for (const [lng, lat] of coordinates) {
+    sumLng += lng;
+    sumLat += lat;
+  }
+  return [sumLng / coordinates.length, sumLat / coordinates.length];
+}
+
+/**
+ * Calculate the center of a route (line string)
+ */
+function calculateRouteCenter(coordinates: [number, number][]): [number, number] {
+  if (coordinates.length === 0) return [0, 0];
+  if (coordinates.length === 1) return coordinates[0];
+
+  // Get the middle point of the route
+  const midIndex = Math.floor(coordinates.length / 2);
+  return coordinates[midIndex];
+}
+
+// ===========================================
 // Timeline Ruler Component
 // ===========================================
 
@@ -558,6 +589,7 @@ export function Timeline() {
 
   const selectedElement = useEditorStore((state) => state.selectedElement);
   const selectElement = useEditorStore((state) => state.selectElement);
+  const flyToLocation = useEditorStore((state) => state.flyToLocation);
 
   const duration = config?.settings.duration ?? 30;
   const keyframes = config?.keyframes ?? [];
@@ -614,11 +646,77 @@ export function Timeline() {
   // Select keyframe
   const handleSelectKeyframe = (id: string) => {
     selectElement({ type: 'keyframe', id });
+    // For keyframes, fly to the keyframe's camera position
+    const keyframe = keyframes.find(k => k.id === id);
+    if (keyframe?.camera?.centre) {
+      flyToLocation(keyframe.camera.centre, keyframe.camera.zoom);
+    }
   };
 
-  // Handle table item selection
+  // Select zone and fly to its center
+  const handleSelectZone = (id: string) => {
+    selectElement({ type: 'zone', id });
+    const zone = zones.find(z => z.id === id);
+    if (zone?.coordinates && zone.coordinates.length > 0) {
+      const center = calculatePolygonCentroid(zone.coordinates);
+      flyToLocation(center);
+    }
+  };
+
+  // Select route and fly to its center
+  const handleSelectRoute = (id: string) => {
+    selectElement({ type: 'route', id });
+    const route = routes.find(r => r.id === id);
+    if (route?.coordinates && route.coordinates.length > 0) {
+      const center = calculateRouteCenter(route.coordinates);
+      flyToLocation(center);
+    }
+  };
+
+  // Select text marker and fly to its position
+  const handleSelectTextMarker = (id: string) => {
+    selectElement({ type: 'textMarker', id });
+    const marker = textMarkers.find(m => m.id === id);
+    if (marker?.position) {
+      flyToLocation(marker.position);
+    }
+  };
+
+  // Handle table item selection (with flyTo)
   const handleTableItemSelect = (id: string, type: TimelineItemType) => {
     selectElement({ type, id });
+
+    // Fly to the element's location
+    switch (type) {
+      case 'keyframe': {
+        const keyframe = keyframes.find(k => k.id === id);
+        if (keyframe?.camera?.centre) {
+          flyToLocation(keyframe.camera.centre, keyframe.camera.zoom);
+        }
+        break;
+      }
+      case 'zone': {
+        const zone = zones.find(z => z.id === id);
+        if (zone?.coordinates && zone.coordinates.length > 0) {
+          flyToLocation(calculatePolygonCentroid(zone.coordinates));
+        }
+        break;
+      }
+      case 'route': {
+        const route = routes.find(r => r.id === id);
+        if (route?.coordinates && route.coordinates.length > 0) {
+          flyToLocation(calculateRouteCenter(route.coordinates));
+        }
+        break;
+      }
+      case 'textMarker': {
+        const marker = textMarkers.find(m => m.id === id);
+        if (marker?.position) {
+          flyToLocation(marker.position);
+        }
+        break;
+      }
+    }
   };
 
   // Handle table item deletion
@@ -876,7 +974,7 @@ export function Timeline() {
                           selectedElement?.type === 'zone' &&
                           selectedElement.id === zone.id
                         }
-                        onSelect={() => selectElement({ type: 'zone', id: zone.id })}
+                        onSelect={() => handleSelectZone(zone.id)}
                         row={zoneRowAssignments.get(zone.id) ?? 0}
                       />
                     ))}
@@ -898,7 +996,7 @@ export function Timeline() {
                           selectedElement?.type === 'route' &&
                           selectedElement.id === route.id
                         }
-                        onSelect={() => selectElement({ type: 'route', id: route.id })}
+                        onSelect={() => handleSelectRoute(route.id)}
                         row={routeRowAssignments.get(route.id) ?? 0}
                       />
                     ))}
@@ -920,7 +1018,7 @@ export function Timeline() {
                           selectedElement?.type === 'textMarker' &&
                           selectedElement.id === marker.id
                         }
-                        onSelect={() => selectElement({ type: 'textMarker', id: marker.id })}
+                        onSelect={() => handleSelectTextMarker(marker.id)}
                         row={markerRowAssignments.get(marker.id) ?? 0}
                       />
                     ))}

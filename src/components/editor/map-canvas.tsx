@@ -86,6 +86,10 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   const finishDrawing = useEditorStore((state) => state.finishDrawing);
   const cancelDrawing = useEditorStore((state) => state.cancelDrawing);
 
+  // FlyTo state (for timeline item selection)
+  const pendingFlyTo = useEditorStore((state) => state.pendingFlyTo);
+  const clearPendingFlyTo = useEditorStore((state) => state.clearPendingFlyTo);
+
   // Mouse position for coordinates display
   const [mousePosition, setMousePosition] = React.useState<[number, number] | null>(null);
 
@@ -155,6 +159,19 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
     window.addEventListener('touchstart', handleFirstTouch, { once: true });
     return () => window.removeEventListener('touchstart', handleFirstTouch);
   }, []);
+
+  // Handle flyTo requests from timeline item selection
+  React.useEffect(() => {
+    if (pendingFlyTo && mapRef.current) {
+      mapRef.current.flyTo({
+        center: pendingFlyTo.center,
+        zoom: pendingFlyTo.zoom ?? mapRef.current.getZoom(),
+        duration: 1000,
+        essential: true,
+      });
+      clearPendingFlyTo();
+    }
+  }, [pendingFlyTo, clearPendingFlyTo]);
 
   // Refs to access current values in event handlers (avoids stale closures)
   const selectedToolRef = React.useRef(selectedTool);
@@ -1249,6 +1266,8 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
           transform: rotate(${rotation}deg);
           transform-origin: center center;
           transition: opacity 0.05s ease-out;
+          position: relative;
+          z-index: 20;
         `;
         el.textContent = textMarker.text;
 
@@ -1298,6 +1317,8 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
           transform: rotate(${rotation}deg);
           transform-origin: center center;
           transition: opacity 0.05s ease-out;
+          position: relative;
+          z-index: 20;
         `;
       }
     });

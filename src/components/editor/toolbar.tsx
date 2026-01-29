@@ -27,6 +27,7 @@ import {
   Navigation,
   Archive,
   Sparkles,
+  FileEdit,
 } from 'lucide-react';
 
 // Custom Zone Icon - polygon with corner points
@@ -153,6 +154,7 @@ interface ToolbarProps {
   onOpenShortcuts: () => void;
   onOpenSettings: () => void;
   onOpenAI: () => void;
+  hasAIScript?: boolean; // True when project has an AI-generated script that can be edited
 }
 
 // ===========================================
@@ -165,6 +167,7 @@ export function Toolbar({
   onOpenShortcuts,
   onOpenSettings,
   onOpenAI,
+  hasAIScript = false,
 }: ToolbarProps) {
   const selectedTool = useEditorStore((state) => state.selectedTool);
   const setTool = useEditorStore((state) => state.setTool);
@@ -333,15 +336,24 @@ export function Toolbar({
             <TooltipTrigger asChild>
               <button
                 onClick={onOpenAI}
-                className="tool-button text-violet-500 hover:text-violet-600"
-                aria-label="AI Assistant"
+                className={cn(
+                  'tool-button',
+                  hasAIScript
+                    ? 'text-green-500 hover:text-green-600 ring-2 ring-green-500/30'
+                    : 'text-violet-500 hover:text-violet-600'
+                )}
+                aria-label={hasAIScript ? 'Edit Script' : 'AI Assistant'}
               >
-                <Sparkles className="h-5 w-5" />
+                {hasAIScript ? (
+                  <FileEdit className="h-5 w-5" />
+                ) : (
+                  <Sparkles className="h-5 w-5" />
+                )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
               <div className="flex items-center gap-2">
-                <span>AI Assistant</span>
+                <span>{hasAIScript ? 'Edit Script' : 'AI Assistant'}</span>
                 <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">A</kbd>
               </div>
             </TooltipContent>

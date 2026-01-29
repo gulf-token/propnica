@@ -349,6 +349,7 @@ export default function EditorPage() {
   const isDirty = useProjectStore((state) => state.isDirty);
   const loadProject = useProjectStore((state) => state.loadProject);
   const markClean = useProjectStore((state) => state.markClean);
+  const setConfig = useProjectStore((state) => state.setConfig);
 
   // Local state
   const [isLoading, setIsLoading] = React.useState(true);
@@ -508,6 +509,12 @@ export default function EditorPage() {
     setAiOpen(true);
   };
 
+  // Handle AI script update - applies new config from regenerated script
+  const handleProjectUpdated = (newConfig: ProjectConfig) => {
+    setConfig(newConfig);
+    setAiOpen(false);
+  };
+
   const handleFlyToLocation = (coordinates: [number, number]) => {
     mapRef.current?.flyTo(coordinates);
     setMapCenter(coordinates);
@@ -569,6 +576,7 @@ export default function EditorPage() {
           onOpenShortcuts={handleOpenShortcuts}
           onOpenSettings={handleOpenSettings}
           onOpenAI={handleOpenAI}
+          hasAIScript={!!config?.aiMetadata?.originalScript}
         />
 
         {/* Map Canvas with Aspect Ratio Container */}
@@ -623,6 +631,8 @@ export default function EditorPage() {
         onOpenChange={setAiOpen}
         initialScript={config?.aiMetadata?.originalScript || ''}
         editMode={!!config?.aiMetadata?.originalScript}
+        projectId={projectId}
+        onProjectUpdated={handleProjectUpdated}
       />
     </div>
   );

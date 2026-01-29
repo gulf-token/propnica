@@ -56,7 +56,10 @@ interface EditorState {
 
   // Vertex Editing State
   isVertexEditing: boolean;
-  
+
+  // Camera Fly-To State (for timeline item selection)
+  pendingFlyTo: { center: [number, number]; zoom?: number } | null;
+
   // Actions - Tool
   setTool: (tool: EditorTool) => void;
   toggleTool: (tool: EditorTool) => void;
@@ -129,7 +132,11 @@ interface EditorState {
   setVertexEditing: (enabled: boolean) => void;
   startVertexEditing: () => void;
   stopVertexEditing: () => void;
-  
+
+  // Actions - Camera Fly-To
+  flyToLocation: (center: [number, number], zoom?: number) => void;
+  clearPendingFlyTo: () => void;
+
   // Aliases for backwards compatibility
   drawingPoints: [number, number][];
   setSelectedTool: (tool: EditorTool) => void;
@@ -174,6 +181,7 @@ export const useEditorStore = create<EditorState>()(
       isDrawing: false,
       drawingCoordinates: [],
       isVertexEditing: false,
+      pendingFlyTo: null,
 
       // Tool Actions
       setTool: (tool) => {
@@ -552,6 +560,19 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
+      // Camera Fly-To Actions
+      flyToLocation: (center, zoom) => {
+        set((state) => {
+          state.pendingFlyTo = { center, zoom };
+        });
+      },
+
+      clearPendingFlyTo: () => {
+        set((state) => {
+          state.pendingFlyTo = null;
+        });
+      },
+
       // Aliases for API consistency
       get drawingPoints() {
         return get().drawingCoordinates;
@@ -581,3 +602,4 @@ export const selectIsDrawing = (state: EditorState) => state.isDrawing;
 export const selectDrawingCoordinates = (state: EditorState) => state.drawingCoordinates;
 export const selectDrawingPoints = (state: EditorState) => state.drawingCoordinates;
 export const selectLibraryPanelOpen = (state: EditorState) => state.libraryPanelOpen;
+export const selectPendingFlyTo = (state: EditorState) => state.pendingFlyTo;
