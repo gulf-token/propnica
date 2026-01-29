@@ -316,6 +316,7 @@ interface AIProjectGeneratorProps {
   initialScript?: string;
   editMode?: boolean; // When true, shows "Update" instead of "Create"
   projectId?: string; // Required for edit mode to update existing project
+  triggerTryOut?: boolean; // When true, automatically triggers "Try it out" on open
 }
 
 // ===========================================
@@ -931,6 +932,7 @@ export function AIProjectGenerator({
   initialScript = '',
   editMode = false,
   projectId,
+  triggerTryOut = false,
 }: AIProjectGeneratorProps) {
   const router = useRouter();
 
@@ -938,12 +940,30 @@ export function AIProjectGenerator({
   const [step, setStep] = React.useState<WizardStep>('input');
   const [script, setScript] = React.useState(initialScript);
 
+  // Track if we've already triggered try-out for this open
+  const hasTriggeredTryOutRef = React.useRef(false);
+
   // Initialize script from prop when dialog opens
   React.useEffect(() => {
     if (open && initialScript) {
       setScript(initialScript);
     }
   }, [open, initialScript]);
+
+  // Trigger try-out mode when dialog opens with triggerTryOut=true
+  React.useEffect(() => {
+    if (open && triggerTryOut && !hasTriggeredTryOutRef.current) {
+      hasTriggeredTryOutRef.current = true;
+      // Small delay to ensure dialog is rendered
+      const timer = setTimeout(() => {
+        handleTryItOutImmediate();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    if (!open) {
+      hasTriggeredTryOutRef.current = false;
+    }
+  }, [open, triggerTryOut]);
   const [settings, setSettings] = React.useState({
     aspectRatio: '16:9' as AspectRatioPreset,
     mapStyle: 'satellite' as MapStyle,
@@ -1095,6 +1115,20 @@ export function AIProjectGenerator({
     setTimeout(() => {
       parseWithAIForTryOut(sample.script, sample.aspectRatio);
     }, 100);
+  };
+
+  // Immediate version for when triggered via prop (no state wait needed)
+  const handleTryItOutImmediate = () => {
+    const randomIndex = Math.floor(Math.random() * SAMPLE_SCRIPTS.length);
+    const sample = SAMPLE_SCRIPTS[randomIndex];
+
+    setScript(sample.script);
+    setSettings((prev) => ({
+      ...prev,
+      aspectRatio: sample.aspectRatio,
+    }));
+    setIsTryingOut(true);
+    parseWithAIForTryOut(sample.script, sample.aspectRatio);
   };
 
   // Separate parse function for "Try it out" that uses passed values directly

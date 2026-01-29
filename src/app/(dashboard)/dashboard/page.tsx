@@ -46,6 +46,7 @@ import { AIProjectGenerator } from '@/components/ai';
 export default function DashboardPage() {
   const router = useRouter();
   const [showAIGenerator, setShowAIGenerator] = React.useState(false);
+  const [triggerTryOut, setTriggerTryOut] = React.useState(false);
 
   // Fetch recent projects
   const { data: projectsData, isLoading: projectsLoading } = trpc.projects.list.useQuery({
@@ -113,6 +114,17 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              onClick={() => {
+                setTriggerTryOut(true);
+                setShowAIGenerator(true);
+              }}
+              className="bg-gradient-to-r from-amber-400 to-orange-500 text-white hover:from-amber-500 hover:to-orange-600 shadow-lg border-0"
+            >
+              <Zap className="w-5 h-5 mr-2" />
+              Try it out
+            </Button>
             <Button
               size="lg"
               onClick={() => setShowAIGenerator(true)}
@@ -321,6 +333,19 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="justify-start h-auto py-3 flex-col items-center gap-1 col-span-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-orange-50/80 hover:from-amber-100/80 hover:to-orange-100/80 dark:border-amber-800 dark:from-amber-950/30 dark:to-orange-950/30"
+                onClick={() => {
+                  setTriggerTryOut(true);
+                  setShowAIGenerator(true);
+                }}
+              >
+                <Zap className="w-5 h-5 text-amber-500" />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Try it out</span>
+                <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70">Generate a sample video</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="justify-start h-auto py-3 flex-col items-center gap-1 col-span-2 border-purple-200 bg-purple-50/50 hover:bg-purple-100/50 dark:border-purple-800 dark:bg-purple-950/30"
                 onClick={() => setShowAIGenerator(true)}
               >
@@ -422,10 +447,16 @@ export default function DashboardPage() {
       {/* AI Project Generator Dialog */}
       <AIProjectGenerator
         open={showAIGenerator}
-        onOpenChange={setShowAIGenerator}
+        onOpenChange={(open) => {
+          setShowAIGenerator(open);
+          if (!open) {
+            setTriggerTryOut(false);
+          }
+        }}
         onProjectCreated={(projectId) => {
           router.push(`/editor/${projectId}`);
         }}
+        triggerTryOut={triggerTryOut}
       />
 
       {/* Version Indicator */}
