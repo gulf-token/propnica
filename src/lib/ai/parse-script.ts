@@ -231,7 +231,9 @@ export function convertToProjectConfig(
 
     switch (item.activity.type) {
       case 'camera':
-        keyframes.push(convertCameraActivity(item, getCoordinates, totalDuration));
+        // Orbit needs multiple keyframes to create the rotation animation
+        const cameraKeyframes = convertCameraActivity(item, getCoordinates, totalDuration);
+        keyframes.push(...cameraKeyframes);
         break;
 
       case 'zone':
@@ -311,7 +313,7 @@ function convertCameraActivity(
   item: TimelineItem,
   getCoordinates: (loc: string) => [number, number],
   totalDuration: number
-): Keyframe {
+): Keyframe[] {
   const activity = item.activity;
   if (activity.type !== 'camera') throw new Error('Not a camera activity');
 
@@ -320,7 +322,7 @@ function convertCameraActivity(
 
   // Calculate camera settings based on action with constraints
   let zoom = clampZoom(activity.zoom, DEFAULT_ZOOM);
-  let bearing = activity.bearing ?? 0;
+  let startBearing = activity.bearing ?? 0;
   let pitch = Math.max(0, Math.min(60, activity.pitch ?? 45)); // Constrain pitch 0-60
 
   switch (activity.action) {
@@ -331,9 +333,40 @@ function convertCameraActivity(
       zoom = clampZoom(activity.zoom, 12);
       break;
     case 'orbit':
-      // For orbit, we need to track the rotation
-      bearing = activity.orbitDegrees ?? 360;
-      break;
+      // For orbit, create two keyframes: start and end bearing
+      const orbitDegrees = activity.orbitDegrees ?? 360;
+      const endBearing = startBearing + orbitDegrees;
+
+      console.log(`[convertCameraActivity] ORBIT "${activity.location}" → coords:`, coordinates, `bearing: ${startBearing} → ${endBearing}`);
+
+      return [
+        {
+          id: uuid(),
+          name: `Orbit start - ${activity.location}`,
+          time: item.startTime,
+          duration: 0.1, // Very short duration for the start keyframe
+          camera: {
+            centre: coordinates,
+            zoom: clampZoom(activity.zoom, 15),
+            bearing: startBearing,
+            pitch: Math.max(0, Math.min(60, activity.pitch ?? 50)),
+          },
+          easing: 'linear' as EasingType,
+        },
+        {
+          id: uuid(),
+          name: item.description ?? `Orbit - ${activity.location}`,
+          time: item.startTime + duration,
+          duration: 0.1,
+          camera: {
+            centre: coordinates,
+            zoom: clampZoom(activity.zoom, 15),
+            bearing: endBearing,
+            pitch: Math.max(0, Math.min(60, activity.pitch ?? 50)),
+          },
+          easing: 'linear' as EasingType,
+        },
+      ];
     case 'tilt':
       pitch = Math.max(0, Math.min(60, activity.pitch ?? 60));
       break;
@@ -345,7 +378,7 @@ function convertCameraActivity(
 
   console.log(`[convertCameraActivity] "${activity.location}" → coords:`, coordinates, `zoom: ${zoom}`);
 
-  return {
+  return [{
     id: uuid(),
     name: item.description ?? `${activity.action} - ${activity.location}`,
     time: item.startTime,
@@ -353,11 +386,11 @@ function convertCameraActivity(
     camera: {
       centre: coordinates,
       zoom,
-      bearing,
+      bearing: startBearing,
       pitch,
     },
     easing: 'easeInOutCubic' as EasingType,
-  };
+  }];
 }
 
 function convertZoneActivity(
