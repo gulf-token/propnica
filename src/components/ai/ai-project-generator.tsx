@@ -65,6 +65,84 @@ import { formatSecondsToTime } from '@/lib/ai/time-parser';
 import type { ProjectConfig, AspectRatioPreset, MapStyle, Keyframe, Zone, Route, TextMarker } from '@/types';
 import { cn } from '@/lib/utils';
 
+// ===========================================
+// Sample Scripts for "Try it out"
+// ===========================================
+
+const SAMPLE_SCRIPTS = [
+  {
+    name: 'Dubai Marina Luxury Tour',
+    script: `00:00 Start with a wide aerial view of Dubai Marina skyline
+00:03 Zoom into the Marina Walk promenade area
+00:06 Draw a zone around JBR Beach with golden fill
+00:08 Text label "Dubai Marina" appears at the marina center
+00:12 Draw a route from Marina Mall to JBR Walk, animated red line
+00:18 Pan to show the yacht club and marina boats
+00:22 Circle around Dubai Marina Mall for a final view
+00:28 Fade out`,
+    aspectRatio: '9:16' as AspectRatioPreset, // TikTok/Reels
+  },
+  {
+    name: 'Emirates Hills Estate',
+    script: `00:00 Open with panoramic view of Emirates Hills golf course
+00:04 Zoom into the prestigious Montgomerie Golf Club
+00:07 Highlight Emirates Hills community with blue zone
+00:10 Text "Emirates Hills" with elegant white styling
+00:14 Draw route from Emirates Hills entrance to the clubhouse
+00:20 Pan across the luxury villas and landscaped gardens
+00:25 End with sunset view over the Emirates Living area`,
+    aspectRatio: '16:9' as AspectRatioPreset, // YouTube
+  },
+  {
+    name: 'Downtown Dubai Experience',
+    script: `00:00 Start high above Downtown Dubai
+00:03 Dramatic zoom towards Burj Khalifa
+00:06 Circle around the world's tallest building
+00:10 Draw zone around Dubai Mall with shopping icon
+00:13 Text "Downtown Dubai" in bold white
+00:16 Route from Burj Khalifa to Dubai Fountain
+00:22 Pan to show Business Bay skyline
+00:26 Final wide shot of the entire downtown area`,
+    aspectRatio: '1:1' as AspectRatioPreset, // Instagram
+  },
+  {
+    name: 'Palm Jumeirah Discovery',
+    script: `00:00 Bird's eye view of the entire Palm Jumeirah
+00:04 Zoom into the trunk of the Palm
+00:07 Highlight Atlantis The Palm with zone
+00:10 Text "Palm Jumeirah" appears
+00:14 Draw route along the crescent from one end to other
+00:20 Showcase the fronds with luxury villas
+00:24 Pan to Atlantis Aquaventure area
+00:28 End with monorail station view`,
+    aspectRatio: '9:16' as AspectRatioPreset,
+  },
+  {
+    name: 'Business Bay Investment Zone',
+    script: `00:00 Aerial view of Dubai Water Canal
+00:03 Zoom into Business Bay towers
+00:06 Draw zone around Bay Square development
+00:09 Text "Business Bay" with corporate blue styling
+00:12 Route from Business Bay Metro to Executive Towers
+00:18 Highlight the canal-side promenade
+00:22 Show proximity to Downtown Dubai
+00:26 End with view of the bay and yachts`,
+    aspectRatio: '16:9' as AspectRatioPreset,
+  },
+  {
+    name: 'Jumeirah Beach Residence',
+    script: `00:00 Wide shot of JBR beachfront
+00:03 Zoom to The Walk at JBR
+00:06 Highlight JBR beach area with sandy gold zone
+00:09 Text "JBR Living" appears
+00:12 Draw walking route along The Beach mall
+00:18 Pan to show Ain Dubai (Dubai Eye) in background
+00:22 Showcase the tower residences
+00:26 End with sunset beach view`,
+    aspectRatio: '4:5' as AspectRatioPreset, // Instagram portrait
+  },
+];
+
 // Known landmarks are now handled server-side in /api/geocode
 
 // ===========================================
@@ -304,6 +382,8 @@ interface ScriptInputStepProps {
   };
   onSettingsChange: (settings: ScriptInputStepProps['settings']) => void;
   onNext: () => void;
+  onTryIt: () => void;
+  isTryingOut?: boolean;
 }
 
 function ScriptInputStep({
@@ -312,6 +392,8 @@ function ScriptInputStep({
   settings,
   onSettingsChange,
   onNext,
+  onTryIt,
+  isTryingOut = false,
 }: ScriptInputStepProps) {
   const [inputMode, setInputMode] = React.useState<'text' | 'table'>('text');
 
@@ -325,12 +407,33 @@ function ScriptInputStep({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Describe Your Video</h2>
-        <p className="text-sm text-muted-foreground">
-          Write a script describing what should happen in your property video.
-          Include timing, locations, camera movements, and any overlays.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Describe Your Video</h2>
+          <p className="text-sm text-muted-foreground">
+            Write a script describing what should happen in your property video.
+            Include timing, locations, camera movements, and any overlays.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onTryIt}
+          disabled={isTryingOut}
+          className="shrink-0 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 hover:border-violet-500/50 text-violet-600 hover:text-violet-700"
+        >
+          {isTryingOut ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4 mr-2" />
+              Try it out
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Input Mode Toggle */}
@@ -852,17 +955,32 @@ export function AIProjectGenerator({
   const [parsedScript, setParsedScript] = React.useState<ParsedScript | null>(null);
   const [projectConfig, setProjectConfig] = React.useState<ProjectConfig | null>(null);
   const [createdProjectId, setCreatedProjectId] = React.useState<string | null>(null);
+  const [isTryingOut, setIsTryingOut] = React.useState(false);
+  const [autoCreateAfterParse, setAutoCreateAfterParse] = React.useState(false);
+
+  // Track if we should auto-navigate after creation
+  const shouldAutoNavigateRef = React.useRef(false);
 
   // tRPC mutation for creating project
   const createProject = trpc.projects.create.useMutation({
     onSuccess: (project) => {
       setCreatedProjectId(project.id);
       onProjectCreated?.(project.id);
-      setStep('success');
+
+      // If in try-out mode, auto-navigate to editor
+      if (shouldAutoNavigateRef.current) {
+        shouldAutoNavigateRef.current = false;
+        setIsTryingOut(false);
+        onOpenChange(false);
+        router.push(`/editor/${project.id}`);
+      } else {
+        setStep('success');
+      }
     },
     onError: (error) => {
       setError(error.message);
       setStep('review');
+      setIsTryingOut(false);
     },
   });
 
@@ -923,10 +1041,141 @@ export function AIProjectGenerator({
       }
 
       setProjectConfig(config);
+      setParsedScript(parsedData);
 
-      setStep('review');
+      // If in "try it out" mode, auto-create and open editor
+      if (autoCreateAfterParse) {
+        setStep('creating');
+        // Add AI metadata to the config
+        const configWithMetadata: ProjectConfig = {
+          ...config,
+          aiMetadata: {
+            originalScript: script,
+            generatedAt: new Date().toISOString(),
+            parsedTimeline: parsedData,
+          },
+        };
+        createProject.mutate({
+          name: parsedData.title || 'AI Generated Project',
+          description: parsedData.description || script.slice(0, 200),
+          config: configWithMetadata,
+        });
+        setAutoCreateAfterParse(false);
+        setIsTryingOut(false);
+      } else {
+        setStep('review');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setAutoCreateAfterParse(false);
+      setIsTryingOut(false);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle "Try it out" - select random script and auto-create
+  const handleTryItOut = () => {
+    // Select a random sample script
+    const randomIndex = Math.floor(Math.random() * SAMPLE_SCRIPTS.length);
+    const sample = SAMPLE_SCRIPTS[randomIndex];
+
+    // Set the script and settings
+    setScript(sample.script);
+    setSettings({
+      ...settings,
+      aspectRatio: sample.aspectRatio,
+    });
+
+    // Enable auto-create mode and start parsing
+    setIsTryingOut(true);
+    setAutoCreateAfterParse(true);
+
+    // Need to wait a tick for state to update, then parse
+    setTimeout(() => {
+      parseWithAIForTryOut(sample.script, sample.aspectRatio);
+    }, 100);
+  };
+
+  // Separate parse function for "Try it out" that uses passed values directly
+  const parseWithAIForTryOut = async (scriptText: string, aspectRatio: AspectRatioPreset) => {
+    setStep('processing');
+    setIsProcessing(true);
+    setError(null);
+    setProgress('Generating sample project...');
+
+    try {
+      const response = await fetch('/api/ai/parse-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script: scriptText,
+          options: {
+            defaultDuration: settings.duration,
+            aspectRatio: aspectRatio,
+            mapStyle: settings.mapStyle,
+            streaming: false,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to parse script');
+      }
+
+      setProgress('Processing timeline...');
+      const parsedData = data.data as ParsedScript;
+      setParsedScript(parsedData);
+
+      // Extract and geocode all locations
+      setProgress('Geocoding locations...');
+      const locations = extractLocations(parsedData);
+      const geocodedLocations = await geocodeAllLocations(locations, setProgress);
+
+      // Convert to ProjectConfig with geocoded coordinates
+      setProgress('Generating project configuration...');
+      let config = convertToProjectConfig(parsedData, { geocodedLocations });
+
+      // Enhance routes with road-based directions
+      if (config.routes && config.routes.length > 0) {
+        setProgress('Fetching road-based routes...');
+        config = await enhanceRoutesWithDirections(config, setProgress);
+      }
+
+      // Enhance zones with detailed boundaries
+      if (config.zones && config.zones.length > 0) {
+        setProgress('Fetching detailed zone boundaries...');
+        config = await enhanceZonesWithBoundaries(config, setProgress);
+      }
+
+      setProjectConfig(config);
+
+      // Auto-create the project and navigate to editor
+      setStep('creating');
+      setProgress('Creating your project...');
+      const configWithMetadata: ProjectConfig = {
+        ...config,
+        aiMetadata: {
+          originalScript: scriptText,
+          generatedAt: new Date().toISOString(),
+          parsedTimeline: parsedData,
+        },
+      };
+
+      // Set flag to auto-navigate after creation
+      shouldAutoNavigateRef.current = true;
+
+      createProject.mutate({
+        name: parsedData.title || 'AI Generated Project',
+        description: parsedData.description || scriptText.slice(0, 200),
+        config: configWithMetadata,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setIsTryingOut(false);
+      shouldAutoNavigateRef.current = false;
     } finally {
       setIsProcessing(false);
     }
@@ -1020,6 +1269,8 @@ export function AIProjectGenerator({
             settings={settings}
             onSettingsChange={setSettings}
             onNext={parseWithAI}
+            onTryIt={handleTryItOut}
+            isTryingOut={isTryingOut}
           />
         )}
 
