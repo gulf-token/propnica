@@ -234,6 +234,8 @@ interface AIProjectGeneratorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectCreated?: (projectId: string) => void;
+  initialScript?: string;
+  editMode?: boolean; // When true, shows "Update" instead of "Create"
 }
 
 // ===========================================
@@ -523,7 +525,9 @@ function ProcessingStep({
 interface ReviewStepProps {
   parsedScript: ParsedScript | null;
   projectConfig: ProjectConfig | null;
+  originalScript: string;
   onConfigChange: (config: ProjectConfig) => void;
+  onScriptChange: (script: string) => void;
   onBack: () => void;
   onRegenerate: () => void;
   onCreate: () => void;
@@ -532,12 +536,15 @@ interface ReviewStepProps {
 function ReviewStep({
   parsedScript,
   projectConfig,
+  originalScript,
   onConfigChange,
+  onScriptChange,
   onBack,
   onRegenerate,
   onCreate,
 }: ReviewStepProps) {
   const [selectedItemId, setSelectedItemId] = React.useState<string | undefined>();
+  const [activeTab, setActiveTab] = React.useState<'timeline' | 'script'>('timeline');
 
   if (!parsedScript || !projectConfig) {
     return (
@@ -631,65 +638,104 @@ function ReviewStep({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      {/* Header with Create Button at Top */}
+      <div className="flex items-center justify-between pb-2 border-b">
         <div>
           <h2 className="text-lg font-semibold">Review Your Project</h2>
           <p className="text-sm text-muted-foreground">
-            Review and edit the generated timeline before creating your project.
+            Review and edit before creating
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={onRegenerate}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Regenerate
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onRegenerate}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Regenerate
+          </Button>
+          <Button onClick={onCreate} className="bg-green-600 hover:bg-green-700">
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Create Project
+          </Button>
+        </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="p-3">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-4 gap-3">
+        <Card className="p-2">
           <p className="text-xs text-muted-foreground">Duration</p>
-          <p className="text-lg font-semibold">
+          <p className="text-base font-semibold">
             {formatSecondsToTime(parsedScript.settings.totalDuration)}
           </p>
         </Card>
-        <Card className="p-3">
+        <Card className="p-2">
           <p className="text-xs text-muted-foreground">Camera Shots</p>
-          <p className="text-lg font-semibold">{projectConfig.keyframes.length}</p>
+          <p className="text-base font-semibold">{projectConfig.keyframes.length}</p>
         </Card>
-        <Card className="p-3">
+        <Card className="p-2">
           <p className="text-xs text-muted-foreground">Zones</p>
-          <p className="text-lg font-semibold">{projectConfig.zones.length}</p>
+          <p className="text-base font-semibold">{projectConfig.zones.length}</p>
         </Card>
-        <Card className="p-3">
+        <Card className="p-2">
           <p className="text-xs text-muted-foreground">Routes</p>
-          <p className="text-lg font-semibold">{projectConfig.routes.length}</p>
+          <p className="text-base font-semibold">{projectConfig.routes.length}</p>
         </Card>
       </div>
 
-      {/* Timeline Table */}
-      <TimelineTable
-        keyframes={projectConfig.keyframes}
-        zones={projectConfig.zones}
-        routes={projectConfig.routes}
-        textMarkers={projectConfig.textMarkers}
-        totalDuration={projectConfig.settings.duration}
-        editable={true}
-        selectedItemId={selectedItemId}
-        onItemSelect={handleItemSelect}
-        onItemUpdate={handleItemUpdate}
-        onItemDelete={handleItemDelete}
-      />
+      {/* Tabs for Script and Timeline */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'timeline' | 'script')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="timeline" className="flex items-center gap-2">
+            <Table className="w-4 h-4" />
+            Timeline
+          </TabsTrigger>
+          <TabsTrigger value="script" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Script
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Actions */}
-      <div className="flex justify-between">
+        <TabsContent value="timeline" className="mt-4">
+          {/* Timeline Table */}
+          <TimelineTable
+            keyframes={projectConfig.keyframes}
+            zones={projectConfig.zones}
+            routes={projectConfig.routes}
+            textMarkers={projectConfig.textMarkers}
+            totalDuration={projectConfig.settings.duration}
+            editable={true}
+            selectedItemId={selectedItemId}
+            onItemSelect={handleItemSelect}
+            onItemUpdate={handleItemUpdate}
+            onItemDelete={handleItemDelete}
+          />
+        </TabsContent>
+
+        <TabsContent value="script" className="mt-4">
+          {/* Original Script */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Original Script</Label>
+            <Textarea
+              value={originalScript}
+              onChange={(e) => onScriptChange(e.target.value)}
+              className="min-h-[300px] font-mono text-sm"
+              placeholder="Your video script..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Edit the script and click "Regenerate" to re-parse with AI.
+            </p>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Bottom Actions */}
+      <div className="flex justify-between pt-2 border-t">
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Script
+          Start Over
         </Button>
-        <Button onClick={onCreate}>
+        <Button onClick={onCreate} className="bg-green-600 hover:bg-green-700">
+          <CheckCircle className="w-4 h-4 mr-2" />
           Create Project
-          <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
@@ -751,12 +797,21 @@ export function AIProjectGenerator({
   open,
   onOpenChange,
   onProjectCreated,
+  initialScript = '',
+  editMode = false,
 }: AIProjectGeneratorProps) {
   const router = useRouter();
 
   // State
   const [step, setStep] = React.useState<WizardStep>('input');
-  const [script, setScript] = React.useState('');
+  const [script, setScript] = React.useState(initialScript);
+
+  // Initialize script from prop when dialog opens
+  React.useEffect(() => {
+    if (open && initialScript) {
+      setScript(initialScript);
+    }
+  }, [open, initialScript]);
   const [settings, setSettings] = React.useState({
     aspectRatio: '16:9' as AspectRatioPreset,
     mapStyle: 'satellite' as MapStyle,
@@ -852,11 +907,21 @@ export function AIProjectGenerator({
   const handleCreate = () => {
     if (!projectConfig || !parsedScript) return;
 
+    // Add AI metadata to the config for later editing
+    const configWithMetadata: ProjectConfig = {
+      ...projectConfig,
+      aiMetadata: {
+        originalScript: script,
+        generatedAt: new Date().toISOString(),
+        parsedTimeline: parsedScript,
+      },
+    };
+
     setStep('creating');
     createProject.mutate({
       name: parsedScript.title || 'AI Generated Project',
       description: parsedScript.description || script.slice(0, 200),
-      config: projectConfig,
+      config: configWithMetadata,
     });
   };
 
@@ -935,7 +1000,9 @@ export function AIProjectGenerator({
           <ReviewStep
             parsedScript={parsedScript}
             projectConfig={projectConfig}
+            originalScript={script}
             onConfigChange={setProjectConfig}
+            onScriptChange={setScript}
             onBack={() => setStep('input')}
             onRegenerate={parseWithAI}
             onCreate={handleCreate}

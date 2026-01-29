@@ -441,9 +441,10 @@ function convertZoneActivity(
     },
     timing: {
       startTime: item.startTime,
-      endTime: Math.min(endTime, totalDuration),
+      // Zones persist until end of video by default (unless explicitly removed)
+      endTime: totalDuration,
       fadeInDuration: 1,
-      fadeOutDuration: 1,
+      fadeOutDuration: 0, // No fade out - zones stay visible
     },
   };
 }
@@ -513,9 +514,10 @@ function convertRouteActivity(
     },
     timing: {
       startTime: item.startTime,
-      endTime: Math.min(endTime, totalDuration),
+      // Routes persist until end of video by default (unless explicitly removed)
+      endTime: totalDuration,
       fadeInDuration: 0,
-      fadeOutDuration: 1,
+      fadeOutDuration: 0, // No fade out - routes stay visible
     },
   };
 }

@@ -621,6 +621,8 @@ export default function EditorPage() {
       <AIProjectGenerator
         open={aiOpen}
         onOpenChange={setAiOpen}
+        initialScript={config?.aiMetadata?.originalScript || ''}
+        editMode={!!config?.aiMetadata?.originalScript}
       />
     </div>
   );

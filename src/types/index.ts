@@ -17,6 +17,13 @@ export interface ProjectConfig {
   routes: Route[];
   textMarkers: TextMarker[];
   branding: BrandingConfig;
+  aiMetadata?: AIMetadata;
+}
+
+export interface AIMetadata {
+  originalScript: string;
+  generatedAt: string;
+  parsedTimeline?: unknown; // Store the parsed timeline for re-editing
 }
 
 export interface ProjectSettings {
