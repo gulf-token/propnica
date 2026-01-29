@@ -28,8 +28,9 @@ export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 
 export const CameraActivitySchema = z.object({
   type: z.literal('camera'),
-  action: z.string().transform((val) => {
+  action: z.string().default('show').transform((val) => {
     // Normalize action names
+    if (!val || typeof val !== 'string') return 'show';
     const normalized = val.toLowerCase().replace(/[_-]/g, '_');
     const valid = ['show', 'zoom_in', 'zoom_out', 'pan', 'orbit', 'tilt', 'fly_to'];
     if (valid.includes(normalized)) return normalized;
@@ -51,7 +52,8 @@ export const CameraActivitySchema = z.object({
 
 export const ZoneActivitySchema = z.object({
   type: z.literal('zone'),
-  action: z.string().transform((val) => {
+  action: z.string().default('draw').transform((val) => {
+    if (!val || typeof val !== 'string') return 'draw';
     const normalized = val.toLowerCase();
     if (['draw', 'highlight', 'show'].includes(normalized)) return normalized;
     return 'draw';
@@ -73,7 +75,8 @@ export const ZoneActivitySchema = z.object({
 
 export const RouteActivitySchema = z.object({
   type: z.literal('route'),
-  action: z.string().transform((val) => {
+  action: z.string().default('draw').transform((val) => {
+    if (!val || typeof val !== 'string') return 'draw';
     const normalized = val.toLowerCase();
     if (['draw', 'show', 'animate'].includes(normalized)) return normalized;
     return 'draw';
@@ -97,7 +100,8 @@ export const RouteActivitySchema = z.object({
 
 export const TextActivitySchema = z.object({
   type: z.literal('text'),
-  action: z.string().transform((val) => {
+  action: z.string().default('show').transform((val) => {
+    if (!val || typeof val !== 'string') return 'show';
     const normalized = val.toLowerCase();
     if (['show', 'appear', 'display'].includes(normalized)) return normalized;
     return 'show';
@@ -124,7 +128,8 @@ export const TextActivitySchema = z.object({
 
 export const MarkerActivitySchema = z.object({
   type: z.literal('marker'),
-  action: z.string().transform((val) => {
+  action: z.string().default('show').transform((val) => {
+    if (!val || typeof val !== 'string') return 'show';
     const normalized = val.toLowerCase();
     if (['show', 'place', 'add'].includes(normalized)) return normalized;
     return 'show';
@@ -249,7 +254,10 @@ const COLOUR_MAP: Record<string, string> = {
   'semi-transparent': 'rgba(0,0,0,0.5)',
 };
 
-export function parseColour(input: string): string {
+export function parseColour(input: string | null | undefined): string {
+  if (!input || typeof input !== 'string') {
+    return '#3B82F6'; // Default blue
+  }
   const normalized = input.toLowerCase().trim();
 
   // Already a hex code
@@ -289,7 +297,8 @@ export const FONT_SIZE_MAP: Record<string, number> = {
   xlarge: 32,
 };
 
-export function parseFontSize(input: string | number): number {
+export function parseFontSize(input: string | number | null | undefined): number {
   if (typeof input === 'number') return input;
+  if (!input || typeof input !== 'string') return 16; // Default
   return FONT_SIZE_MAP[input.toLowerCase()] ?? 16;
 }

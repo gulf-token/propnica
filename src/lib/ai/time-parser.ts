@@ -12,8 +12,9 @@
 /**
  * Parse various time formats to seconds
  */
-export function parseTimeToSeconds(input: string | number): number {
+export function parseTimeToSeconds(input: string | number | null | undefined): number {
   if (typeof input === 'number') return input;
+  if (!input || typeof input !== 'string') return 0;
 
   const normalized = input.toLowerCase().trim();
 
@@ -119,8 +120,9 @@ export function formatSecondsToHuman(seconds: number): string {
  * Parse duration string
  * Examples: "3s", "3 seconds", "for 3 seconds", "over 3 seconds"
  */
-export function parseDuration(input: string | number): number {
+export function parseDuration(input: string | number | null | undefined): number {
   if (typeof input === 'number') return input;
+  if (!input || typeof input !== 'string') return 0;
 
   const normalized = input.toLowerCase().trim();
 

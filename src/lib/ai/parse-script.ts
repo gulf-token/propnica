@@ -157,7 +157,8 @@ export function convertToProjectConfig(
   const totalDuration = parsed.settings.totalDuration;
 
   // Normalize location name for matching
-  const normalizeForMatch = (name: string): string => {
+  const normalizeForMatch = (name: string | null | undefined): string => {
+    if (!name || typeof name !== 'string') return '';
     return name
       .toLowerCase()
       .trim()
@@ -168,14 +169,19 @@ export function convertToProjectConfig(
   };
 
   // Extract key words from a location name
-  const getKeyWords = (name: string): string[] => {
+  const getKeyWords = (name: string | null | undefined): string[] => {
+    if (!name) return [];
     return normalizeForMatch(name)
       .split(' ')
       .filter(w => w.length > 2);
   };
 
   // Helper to get coordinates for a location with flexible matching
-  const getCoordinates = (location: string): [number, number] => {
+  const getCoordinates = (location: string | null | undefined): [number, number] => {
+    if (!location || typeof location !== 'string') {
+      console.log(`[getCoordinates] No location provided, using default:`, defaultCoordinates);
+      return defaultCoordinates;
+    }
     // 1. Exact match
     const geocoded = geocodedLocations.get(location);
     if (geocoded) {
@@ -592,32 +598,39 @@ function convertTextActivity(
 export function extractLocations(parsed: ParsedScript): string[] {
   const locations = new Set<string>();
 
+  // Helper to safely add a location
+  const safeAdd = (loc: string | null | undefined) => {
+    if (loc && typeof loc === 'string' && loc.trim()) {
+      locations.add(loc.trim());
+    }
+  };
+
   for (const item of parsed.timeline) {
     const activity = item.activity;
 
     switch (activity.type) {
       case 'camera':
-        locations.add(activity.location);
+        safeAdd(activity.location);
         break;
       case 'zone':
-        locations.add(activity.location);
+        safeAdd(activity.location);
         break;
       case 'route':
-        locations.add(activity.from);
-        locations.add(activity.to);
-        activity.waypoints?.forEach((wp) => locations.add(wp));
+        safeAdd(activity.from);
+        safeAdd(activity.to);
+        activity.waypoints?.forEach((wp) => safeAdd(wp));
         break;
       case 'text':
-        if (activity.location) locations.add(activity.location);
+        safeAdd(activity.location);
         break;
       case 'marker':
-        locations.add(activity.location);
+        safeAdd(activity.location);
         break;
     }
   }
 
   // Add any explicitly listed locations
-  parsed.locations?.forEach((loc) => locations.add(loc.name));
+  parsed.locations?.forEach((loc) => safeAdd(loc.name));
 
   return Array.from(locations).filter(Boolean);
 }

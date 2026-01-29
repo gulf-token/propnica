@@ -150,6 +150,24 @@ async function fetchFromNominatim(
     // Extract polygon coordinates from GeoJSON
     let polygon: [number, number][] = [];
 
+    // Handle missing or undefined geojson
+    if (!geojson) {
+      // No geometry - create approximate circle
+      const center: [number, number] = [parseFloat(result.lon), parseFloat(result.lat)];
+      const radius = estimateRadiusForPlaceType(result.type, result.class);
+      polygon = createCirclePolygon(center, radius);
+
+      return {
+        name: placeName,
+        displayName: result.display_name,
+        coordinates: center,
+        polygon,
+        source: 'approximate',
+        confidence: 'low',
+        placeType: result.type,
+      };
+    }
+
     if (geojson.type === 'Polygon') {
       // Simple polygon - take outer ring
       polygon = (geojson.coordinates as [number, number][][])[0];
