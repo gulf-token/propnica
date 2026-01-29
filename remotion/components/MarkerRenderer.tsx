@@ -285,15 +285,19 @@ const MarkerIconComponent: React.FC<MarkerIconProps> = ({
             top: size * 1.4,
             transform: 'translateX(-50%)',
             whiteSpace: 'nowrap',
+            width: 'fit-content',
+            maxWidth: 'max-content',
+            display: 'inline-block',
             backgroundColor:
               marker.style?.backgroundColour ?? 'rgba(0, 0, 0, 0.75)',
             opacity: marker.style?.backgroundOpacity ?? 1,
             color: marker.style?.fontColour ?? 'white',
-            padding: marker.style?.padding ?? 4,
+            padding: `${marker.style?.padding ?? 8}px ${(marker.style?.padding ?? 8) * 1.5}px`,
             borderRadius: marker.style?.borderRadius ?? 4,
-            fontSize: marker.style?.fontSize ?? 12,
+            fontSize: marker.style?.fontSize ?? 14,
             fontFamily: marker.style?.fontFamily ?? 'Inter, system-ui, sans-serif',
-            fontWeight: marker.style?.fontWeight ?? 'normal',
+            fontWeight: marker.style?.fontWeight ?? '500',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
           }}
         >
           {marker.text}
