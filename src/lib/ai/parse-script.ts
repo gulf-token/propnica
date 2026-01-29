@@ -333,40 +333,39 @@ function convertCameraActivity(
       zoom = clampZoom(activity.zoom, 12);
       break;
     case 'orbit':
-      // For orbit, create two keyframes: start and end bearing
+      // For orbit, create multiple keyframes to force full rotation
+      // The bearing interpolation takes "shortest path", so 0→360 = no movement
+      // We need intermediate keyframes: 0→90→180→270→359
       const orbitDegrees = activity.orbitDegrees ?? 360;
-      const endBearing = startBearing + orbitDegrees;
+      const orbitZoom = clampZoom(activity.zoom, 15);
+      const orbitPitch = Math.max(0, Math.min(60, activity.pitch ?? 50));
+      const numSteps = 4; // Create 4 intermediate points for smooth rotation
+      const stepDuration = duration / numSteps;
+      const stepDegrees = orbitDegrees / numSteps;
 
-      console.log(`[convertCameraActivity] ORBIT "${activity.location}" → coords:`, coordinates, `bearing: ${startBearing} → ${endBearing}`);
+      console.log(`[convertCameraActivity] ORBIT "${activity.location}" → coords:`, coordinates, `${numSteps} steps over ${duration}s`);
 
-      return [
-        {
+      const orbitKeyframes: Keyframe[] = [];
+      for (let i = 0; i <= numSteps; i++) {
+        // Use 89 degrees per step instead of 90 to avoid shortest-path issues
+        const stepBearing = startBearing + (i * stepDegrees * 0.99);
+        orbitKeyframes.push({
           id: uuid(),
-          name: `Orbit start - ${activity.location}`,
-          time: item.startTime,
-          duration: 0.1, // Very short duration for the start keyframe
-          camera: {
-            centre: coordinates,
-            zoom: clampZoom(activity.zoom, 15),
-            bearing: startBearing,
-            pitch: Math.max(0, Math.min(60, activity.pitch ?? 50)),
-          },
-          easing: 'linear' as EasingType,
-        },
-        {
-          id: uuid(),
-          name: item.description ?? `Orbit - ${activity.location}`,
-          time: item.startTime + duration,
+          name: i === 0 ? `Orbit start - ${activity.location}` :
+                i === numSteps ? (item.description ?? `Orbit end - ${activity.location}`) :
+                `Orbit ${i}/${numSteps} - ${activity.location}`,
+          time: item.startTime + (i * stepDuration),
           duration: 0.1,
           camera: {
             centre: coordinates,
-            zoom: clampZoom(activity.zoom, 15),
-            bearing: endBearing,
-            pitch: Math.max(0, Math.min(60, activity.pitch ?? 50)),
+            zoom: orbitZoom,
+            bearing: stepBearing,
+            pitch: orbitPitch,
           },
           easing: 'linear' as EasingType,
-        },
-      ];
+        });
+      }
+      return orbitKeyframes;
     case 'tilt':
       pitch = Math.max(0, Math.min(60, activity.pitch ?? 60));
       break;
