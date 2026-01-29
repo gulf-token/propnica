@@ -156,21 +156,65 @@ export function convertToProjectConfig(
 
   const totalDuration = parsed.settings.totalDuration;
 
-  // Helper to get coordinates for a location
-  const getCoordinates = (location: string): [number, number] => {
-    const geocoded = geocodedLocations.get(location);
-    if (geocoded) return geocoded.coordinates;
+  // Normalize location name for matching
+  const normalizeForMatch = (name: string): string => {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[,.']/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\b(the|area|region|district|city|of)\b/g, '')
+      .trim();
+  };
 
-    // Try partial match
+  // Extract key words from a location name
+  const getKeyWords = (name: string): string[] => {
+    return normalizeForMatch(name)
+      .split(' ')
+      .filter(w => w.length > 2);
+  };
+
+  // Helper to get coordinates for a location with flexible matching
+  const getCoordinates = (location: string): [number, number] => {
+    // 1. Exact match
+    const geocoded = geocodedLocations.get(location);
+    if (geocoded) {
+      console.log(`[getCoordinates] Exact match for "${location}":`, geocoded.coordinates);
+      return geocoded.coordinates;
+    }
+
+    const normalizedLocation = normalizeForMatch(location);
+    const locationWords = getKeyWords(location);
+
+    // 2. Try normalized match
     for (const [name, data] of geocodedLocations.entries()) {
-      if (
-        location.toLowerCase().includes(name.toLowerCase()) ||
-        name.toLowerCase().includes(location.toLowerCase())
-      ) {
+      if (normalizeForMatch(name) === normalizedLocation) {
+        console.log(`[getCoordinates] Normalized match for "${location}" → "${name}":`, data.coordinates);
         return data.coordinates;
       }
     }
 
+    // 3. Try partial/substring match
+    for (const [name, data] of geocodedLocations.entries()) {
+      const normalizedName = normalizeForMatch(name);
+      if (normalizedLocation.includes(normalizedName) || normalizedName.includes(normalizedLocation)) {
+        console.log(`[getCoordinates] Partial match for "${location}" → "${name}":`, data.coordinates);
+        return data.coordinates;
+      }
+    }
+
+    // 4. Try word-based match (at least 2 words or 1 significant word match)
+    for (const [name, data] of geocodedLocations.entries()) {
+      const nameWords = getKeyWords(name);
+      const matchingWords = locationWords.filter(w => nameWords.includes(w));
+      if (matchingWords.length >= 2 || (matchingWords.length === 1 && matchingWords[0].length > 4)) {
+        console.log(`[getCoordinates] Word match for "${location}" → "${name}" (words: ${matchingWords.join(', ')}):`, data.coordinates);
+        return data.coordinates;
+      }
+    }
+
+    // 5. Fall back to default
+    console.log(`[getCoordinates] No match for "${location}", using default:`, defaultCoordinates);
     return defaultCoordinates;
   };
 
@@ -253,6 +297,16 @@ export function convertToProjectConfig(
 // Individual Converters
 // ===========================================
 
+// Constrain zoom to reasonable map bounds (city to building level)
+const MIN_ZOOM = 10; // City-wide view
+const MAX_ZOOM = 18; // Building level
+const DEFAULT_ZOOM = 14;
+
+function clampZoom(zoom: number | null | undefined, defaultValue: number): number {
+  if (zoom === null || zoom === undefined) return defaultValue;
+  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+}
+
 function convertCameraActivity(
   item: TimelineItem,
   getCoordinates: (loc: string) => [number, number],
@@ -264,30 +318,32 @@ function convertCameraActivity(
   const coordinates = getCoordinates(activity.location);
   const duration = item.duration ?? 3;
 
-  // Calculate camera settings based on action
-  let zoom = activity.zoom ?? 14;
+  // Calculate camera settings based on action with constraints
+  let zoom = clampZoom(activity.zoom, DEFAULT_ZOOM);
   let bearing = activity.bearing ?? 0;
-  let pitch = activity.pitch ?? 45;
+  let pitch = Math.max(0, Math.min(60, activity.pitch ?? 45)); // Constrain pitch 0-60
 
   switch (activity.action) {
     case 'zoom_in':
-      zoom = activity.zoom ?? 16;
+      zoom = clampZoom(activity.zoom, 16);
       break;
     case 'zoom_out':
-      zoom = activity.zoom ?? 12;
+      zoom = clampZoom(activity.zoom, 12);
       break;
     case 'orbit':
       // For orbit, we need to track the rotation
       bearing = activity.orbitDegrees ?? 360;
       break;
     case 'tilt':
-      pitch = activity.pitch ?? 60;
+      pitch = Math.max(0, Math.min(60, activity.pitch ?? 60));
       break;
     case 'fly_to':
-      zoom = activity.zoom ?? 15;
+      zoom = clampZoom(activity.zoom, 15);
       pitch = 50;
       break;
   }
+
+  console.log(`[convertCameraActivity] "${activity.location}" → coords:`, coordinates, `zoom: ${zoom}`);
 
   return {
     id: uuid(),
