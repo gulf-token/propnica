@@ -651,7 +651,8 @@ export type EditorTool =
   | 'addMarker'
   | 'addText'
   | 'drawRectangle'
-  | 'drawCircle';
+  | 'drawCircle'
+  | 'editVertices';
 
 export type ElementType = 'keyframe' | 'zone' | 'route' | 'textMarker';
 

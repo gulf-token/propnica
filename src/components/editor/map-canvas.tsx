@@ -8,6 +8,7 @@ import { cn, formatCoordinate, interpolateCameraState } from '@/lib/utils';
 import { rotatePolygonCoordinates, rotateLineCoordinates } from '@/lib/geo-utils';
 import { Keyframe, Zone, Route, TextMarker, CameraState, MapStyle, MAP_STYLE_URLS } from '@/types';
 import { AlertCircle, MapPin } from 'lucide-react';
+import { VertexEditor } from './vertex-editor';
 
 // ===========================================
 // Constants
@@ -924,6 +925,8 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   // Update Zones
   // ===========================================
 
+  const isVertexEditing = useEditorStore((state) => state.isVertexEditing);
+
   React.useEffect(() => {
     if (!mapRef.current || !config?.zones) return;
 
@@ -933,9 +936,13 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
     if (!source) return;
 
     // Filter zones that should be visible at current time
+    // Exclude the zone being edited when vertex editing is active
     const visibleZones = config.zones.filter((zone) => {
       const { startTime, endTime } = zone.timing;
-      return currentTime >= startTime && currentTime < endTime;
+      const isVisible = currentTime >= startTime && currentTime < endTime;
+      // Hide zone from regular rendering when it's being vertex edited
+      const isBeingEdited = isVertexEditing && selectedElement?.type === 'zone' && selectedElement.id === zone.id;
+      return isVisible && !isBeingEdited;
     });
 
     const features = visibleZones.map((zone) => {
@@ -976,7 +983,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
       type: 'FeatureCollection',
       features,
     });
-  }, [config?.zones, currentTime]);
+  }, [config?.zones, currentTime, isVertexEditing, selectedElement]);
 
   // ===========================================
   // Update Routes
@@ -991,9 +998,13 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
     if (!source) return;
 
     // Filter routes that should be visible at current time
+    // Exclude the route being edited when vertex editing is active
     const visibleRoutes = config.routes.filter((route) => {
       const { startTime, endTime } = route.timing;
-      return currentTime >= startTime && currentTime < endTime;
+      const isVisible = currentTime >= startTime && currentTime < endTime;
+      // Hide route from regular rendering when it's being vertex edited
+      const isBeingEdited = isVertexEditing && selectedElement?.type === 'route' && selectedElement.id === route.id;
+      return isVisible && !isBeingEdited;
     });
 
     const features = visibleRoutes.map((route) => {
@@ -1025,7 +1036,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
       type: 'FeatureCollection',
       features,
     });
-  }, [config?.routes, currentTime]);
+  }, [config?.routes, currentTime, isVertexEditing, selectedElement]);
 
   // ===========================================
   // Update Text Markers
@@ -1423,6 +1434,9 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
           </button>
         </div>
       )}
+
+      {/* Vertex Editor (for zones and routes) */}
+      <VertexEditor map={mapRef.current} />
 
       {/* Touch Gesture Hint Overlay */}
       {showGestureHint && (

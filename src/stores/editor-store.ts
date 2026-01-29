@@ -53,6 +53,9 @@ interface EditorState {
   // Drawing State
   isDrawing: boolean;
   drawingCoordinates: [number, number][];
+
+  // Vertex Editing State
+  isVertexEditing: boolean;
   
   // Actions - Tool
   setTool: (tool: EditorTool) => void;
@@ -121,6 +124,11 @@ interface EditorState {
   removeLastDrawingPoint: () => void;
   finishDrawing: () => [number, number][];
   cancelDrawing: () => void;
+
+  // Actions - Vertex Editing
+  setVertexEditing: (enabled: boolean) => void;
+  startVertexEditing: () => void;
+  stopVertexEditing: () => void;
   
   // Aliases for backwards compatibility
   drawingPoints: [number, number][];
@@ -165,6 +173,7 @@ export const useEditorStore = create<EditorState>()(
       measurePoints: [],
       isDrawing: false,
       drawingCoordinates: [],
+      isVertexEditing: false,
 
       // Tool Actions
       setTool: (tool) => {
@@ -518,6 +527,28 @@ export const useEditorStore = create<EditorState>()(
           if (state.drawingCoordinates.length === 0) {
             state.isDrawing = false;
           }
+        });
+      },
+
+      // Vertex Editing Actions
+      setVertexEditing: (enabled) => {
+        set((state) => {
+          state.isVertexEditing = enabled;
+        });
+      },
+
+      startVertexEditing: () => {
+        set((state) => {
+          state.isVertexEditing = true;
+          state.previousTool = state.selectedTool;
+          state.selectedTool = 'editVertices';
+        });
+      },
+
+      stopVertexEditing: () => {
+        set((state) => {
+          state.isVertexEditing = false;
+          state.selectedTool = state.previousTool || 'select';
         });
       },
 

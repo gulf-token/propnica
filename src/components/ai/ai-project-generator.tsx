@@ -68,6 +68,106 @@ import { cn } from '@/lib/utils';
 // Known landmarks are now handled server-side in /api/geocode
 
 // ===========================================
+// Road-based Routes and Detailed Boundaries
+// ===========================================
+
+import { getRoadCoordinates } from '@/lib/directions';
+import { getPlaceBoundary } from '@/lib/boundaries';
+
+/**
+ * Enhance routes with road-based directions
+ * Converts straight-line routes to routes that follow actual roads
+ */
+async function enhanceRoutesWithDirections(
+  config: ProjectConfig,
+  onProgress?: (message: string) => void
+): Promise<ProjectConfig> {
+  if (!config.routes || config.routes.length === 0) {
+    return config;
+  }
+
+  const enhancedRoutes = [...config.routes];
+
+  for (let i = 0; i < enhancedRoutes.length; i++) {
+    const route = enhancedRoutes[i];
+    onProgress?.(`Fetching road route ${i + 1}/${enhancedRoutes.length}: ${route.name}`);
+
+    // Only process routes with 2+ coordinates
+    if (route.coordinates.length >= 2) {
+      const start = route.coordinates[0];
+      const end = route.coordinates[route.coordinates.length - 1];
+
+      try {
+        const roadCoords = await getRoadCoordinates(start, end);
+        if (roadCoords && roadCoords.length > 2) {
+          console.log(`[AI Generator] Enhanced route "${route.name}" with ${roadCoords.length} road points`);
+          enhancedRoutes[i] = {
+            ...route,
+            coordinates: roadCoords,
+          };
+        }
+      } catch (error) {
+        console.warn(`[AI Generator] Failed to get road route for "${route.name}":`, error);
+        // Keep original straight-line route
+      }
+    }
+
+    // Small delay between requests
+    if (i < enhancedRoutes.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+
+  return {
+    ...config,
+    routes: enhancedRoutes,
+  };
+}
+
+/**
+ * Enhance zones with detailed boundary polygons from OpenStreetMap
+ */
+async function enhanceZonesWithBoundaries(
+  config: ProjectConfig,
+  onProgress?: (message: string) => void
+): Promise<ProjectConfig> {
+  if (!config.zones || config.zones.length === 0) {
+    return config;
+  }
+
+  const enhancedZones = [...config.zones];
+
+  for (let i = 0; i < enhancedZones.length; i++) {
+    const zone = enhancedZones[i];
+    onProgress?.(`Fetching boundary ${i + 1}/${enhancedZones.length}: ${zone.name}`);
+
+    try {
+      const boundary = await getPlaceBoundary(zone.name);
+      if (boundary && boundary.polygon && boundary.polygon.length > 4) {
+        console.log(`[AI Generator] Enhanced zone "${zone.name}" with ${boundary.polygon.length} boundary points (${boundary.source})`);
+        enhancedZones[i] = {
+          ...zone,
+          coordinates: boundary.polygon,
+        };
+      }
+    } catch (error) {
+      console.warn(`[AI Generator] Failed to get boundary for "${zone.name}":`, error);
+      // Keep original simple polygon
+    }
+
+    // Delay to respect Nominatim rate limits (1 req/sec)
+    if (i < enhancedZones.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+  }
+
+  return {
+    ...config,
+    zones: enhancedZones,
+  };
+}
+
+// ===========================================
 // Server-side Geocoding (to avoid CORS issues)
 // ===========================================
 
@@ -724,7 +824,20 @@ export function AIProjectGenerator({
 
       // Convert to ProjectConfig with geocoded coordinates
       setProgress('Generating project configuration...');
-      const config = convertToProjectConfig(parsedData, { geocodedLocations });
+      let config = convertToProjectConfig(parsedData, { geocodedLocations });
+
+      // Enhance routes with road-based directions
+      if (config.routes && config.routes.length > 0) {
+        setProgress('Fetching road-based routes...');
+        config = await enhanceRoutesWithDirections(config, setProgress);
+      }
+
+      // Enhance zones with detailed boundaries
+      if (config.zones && config.zones.length > 0) {
+        setProgress('Fetching detailed zone boundaries...');
+        config = await enhanceZonesWithBoundaries(config, setProgress);
+      }
+
       setProjectConfig(config);
 
       setStep('review');
