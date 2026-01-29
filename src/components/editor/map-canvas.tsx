@@ -9,6 +9,7 @@ import { rotatePolygonCoordinates, rotateLineCoordinates } from '@/lib/geo-utils
 import { Keyframe, Zone, Route, TextMarker, CameraState, MapStyle, MAP_STYLE_URLS } from '@/types';
 import { AlertCircle, MapPin } from 'lucide-react';
 import { VertexEditor } from './vertex-editor';
+import { AnimatedRouteOverlay } from './animated-route-overlay';
 
 // ===========================================
 // Constants
@@ -1105,7 +1106,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   }, [config?.zones, currentTime, isVertexEditing, selectedElement]);
 
   // ===========================================
-  // Update Routes
+  // Update Routes (Mapbox layer - disabled, using SVG overlay instead)
   // ===========================================
 
   React.useEffect(() => {
@@ -1116,14 +1117,14 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
 
     if (!source) return;
 
-    // Filter routes that should be visible at current time
-    // Exclude the route being edited when vertex editing is active
+    // Routes are now rendered via AnimatedRouteOverlay SVG for draw animations
+    // Only render in Mapbox layer when vertex editing (for precise editing feedback)
     const visibleRoutes = config.routes.filter((route) => {
       const { startTime, endTime } = route.timing;
       const isVisible = currentTime >= startTime && currentTime < endTime;
-      // Hide route from regular rendering when it's being vertex edited
+      // Only show in Mapbox layer when being vertex edited
       const isBeingEdited = isVertexEditing && selectedElement?.type === 'route' && selectedElement.id === route.id;
-      return isVisible && !isBeingEdited;
+      return isVisible && isBeingEdited;
     });
 
     const features = visibleRoutes.map((route) => {
@@ -1503,6 +1504,9 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
         ref={mapContainerRef}
         className={cn('absolute inset-0', getCursorClass())}
       />
+
+      {/* Animated Route Overlay (SVG-based draw animations) */}
+      <AnimatedRouteOverlay map={mapRef.current} />
 
       {/* Coordinates Display */}
       {showCoordinates && mousePosition && (
