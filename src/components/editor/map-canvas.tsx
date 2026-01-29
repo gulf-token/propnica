@@ -62,6 +62,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
 
   // Store state
   const config = useProjectStore((state) => state.config);
+  const projectId = useProjectStore((state) => state.projectId);
   const currentTime = useEditorStore((state) => state.currentTime);
   const isPlaying = useEditorStore((state) => state.isPlaying);
   const selectedTool = useEditorStore((state) => state.selectedTool);
@@ -915,27 +916,39 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   // Apply Initial Camera Position
   // ===========================================
   // This effect ensures the map shows the first keyframe when a project is loaded,
-  // even if the config wasn't available during initial map creation
+  // even if the config wasn't available during initial map creation.
+  // It also forces the map to render even if there are no keyframes.
 
   React.useEffect(() => {
-    // Only apply once when we have a map and keyframes
-    if (!mapRef.current || !config?.keyframes?.length || initialCameraAppliedRef.current) return;
+    // Only apply once when we have a map
+    if (!mapRef.current || initialCameraAppliedRef.current) return;
 
     const map = mapRef.current;
-    const firstKeyframe = config.keyframes[0];
 
-    if (!firstKeyframe?.camera) return;
+    // Get camera from first keyframe or use Dubai defaults
+    const firstKeyframe = config?.keyframes?.[0];
+    const camera = firstKeyframe?.camera ?? {
+      centre: [55.2708, 25.2048] as [number, number],
+      zoom: 14,
+      bearing: 0,
+      pitch: 45,
+    };
 
     // Wait for the map to be fully loaded before applying camera
     const applyInitialCamera = () => {
       map.jumpTo({
-        center: firstKeyframe.camera.centre,
-        zoom: firstKeyframe.camera.zoom,
-        bearing: firstKeyframe.camera.bearing,
-        pitch: firstKeyframe.camera.pitch,
+        center: camera.centre,
+        zoom: camera.zoom,
+        bearing: camera.bearing,
+        pitch: camera.pitch,
       });
+
+      // Force resize to ensure map renders tiles
+      map.resize();
+
       initialCameraAppliedRef.current = true;
-      console.log('[MapCanvas] Applied initial camera position from first keyframe');
+      console.log('[MapCanvas] Applied initial camera position',
+        firstKeyframe ? 'from first keyframe' : 'using defaults');
     };
 
     if (map.isStyleLoaded()) {
@@ -948,7 +961,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   // Reset initial camera flag when project changes (new project loaded)
   React.useEffect(() => {
     initialCameraAppliedRef.current = false;
-  }, [config?.version]);
+  }, [projectId]);
 
   // ===========================================
   // Update Map Style

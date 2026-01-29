@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useEditorStore, useProjectStore } from '@/stores';
 import { cn, formatTime } from '@/lib/utils';
-import { Keyframe } from '@/types';
+import { Keyframe, Zone, Route, TextMarker } from '@/types';
 import {
   Button,
   Tooltip,
@@ -149,6 +149,135 @@ function KeyframeItem({
       <div className="px-1.5 h-full flex items-center">
         <span className="text-[10px] text-primary-foreground truncate">
           {keyframe.name || formatTime(keyframe.time)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
+// Zone Item Component
+// ===========================================
+
+interface ZoneItemProps {
+  zone: Zone;
+  pixelsPerSecond: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function ZoneItem({ zone, pixelsPerSecond, isSelected, onSelect }: ZoneItemProps) {
+  const startTime = zone.timing?.startTime ?? 0;
+  const endTime = zone.timing?.endTime ?? 30;
+  const x = startTime * pixelsPerSecond;
+  const width = (endTime - startTime) * pixelsPerSecond;
+
+  return (
+    <div
+      className={cn(
+        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'bg-green-500/80 hover:bg-green-500',
+        isSelected && 'ring-2 ring-green-500 ring-offset-1'
+      )}
+      style={{
+        left: x,
+        width: Math.max(width, 20),
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
+      title={zone.name || 'Zone'}
+    >
+      <div className="px-1.5 h-full flex items-center">
+        <span className="text-[10px] text-white truncate">
+          {zone.name || 'Zone'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
+// Route Item Component
+// ===========================================
+
+interface RouteItemProps {
+  route: Route;
+  pixelsPerSecond: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function RouteItem({ route, pixelsPerSecond, isSelected, onSelect }: RouteItemProps) {
+  const startTime = route.timing?.startTime ?? 0;
+  const endTime = route.timing?.endTime ?? 30;
+  const x = startTime * pixelsPerSecond;
+  const width = (endTime - startTime) * pixelsPerSecond;
+
+  return (
+    <div
+      className={cn(
+        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'bg-orange-500/80 hover:bg-orange-500',
+        isSelected && 'ring-2 ring-orange-500 ring-offset-1'
+      )}
+      style={{
+        left: x,
+        width: Math.max(width, 20),
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
+      title={route.name || 'Route'}
+    >
+      <div className="px-1.5 h-full flex items-center">
+        <span className="text-[10px] text-white truncate">
+          {route.name || 'Route'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================
+// Text Marker Item Component
+// ===========================================
+
+interface TextMarkerItemProps {
+  marker: TextMarker;
+  pixelsPerSecond: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}
+
+function TextMarkerItem({ marker, pixelsPerSecond, isSelected, onSelect }: TextMarkerItemProps) {
+  const startTime = marker.timing?.startTime ?? 0;
+  const endTime = marker.timing?.endTime ?? 30;
+  const x = startTime * pixelsPerSecond;
+  const width = (endTime - startTime) * pixelsPerSecond;
+
+  return (
+    <div
+      className={cn(
+        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'bg-purple-500/80 hover:bg-purple-500',
+        isSelected && 'ring-2 ring-purple-500 ring-offset-1'
+      )}
+      style={{
+        left: x,
+        width: Math.max(width, 20),
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
+      title={marker.text || 'Marker'}
+    >
+      <div className="px-1.5 h-full flex items-center">
+        <span className="text-[10px] text-white truncate">
+          {marker.text || 'Marker'}
         </span>
       </div>
     </div>
@@ -354,6 +483,9 @@ export function Timeline() {
 
   const duration = config?.settings.duration ?? 30;
   const keyframes = config?.keyframes ?? [];
+  const zones = config?.zones ?? [];
+  const routes = config?.routes ?? [];
+  const textMarkers = config?.textMarkers ?? [];
   const pixelsPerSecond = PIXELS_PER_SECOND_BASE * timelineZoom;
 
   // Handle ruler click to seek
@@ -532,8 +664,9 @@ export function Timeline() {
           // Visual Timeline View
           <div className="flex h-full">
             {/* Track Labels */}
-            <div className="w-32 shrink-0 border-r">
+            <div className="w-32 shrink-0 border-r overflow-y-auto">
               <div className="h-6 bg-muted/30" />
+              {/* Camera Track Label */}
               <div className="h-8 flex items-center justify-between px-2 border-b">
                 <span className="text-xs font-medium">Camera</span>
                 <TooltipProvider>
@@ -554,12 +687,33 @@ export function Timeline() {
                   </Tooltip>
                 </TooltipProvider>
               </div>
+              {/* Zones Track Label */}
+              {zones.length > 0 && (
+                <div className="h-8 flex items-center px-2 border-b bg-green-500/5">
+                  <span className="text-xs font-medium text-green-600">Zones</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{zones.length}</span>
+                </div>
+              )}
+              {/* Routes Track Label */}
+              {routes.length > 0 && (
+                <div className="h-8 flex items-center px-2 border-b bg-orange-500/5">
+                  <span className="text-xs font-medium text-orange-600">Routes</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{routes.length}</span>
+                </div>
+              )}
+              {/* Markers Track Label */}
+              {textMarkers.length > 0 && (
+                <div className="h-8 flex items-center px-2 border-b bg-purple-500/5">
+                  <span className="text-xs font-medium text-purple-600">Markers</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{textMarkers.length}</span>
+                </div>
+              )}
             </div>
 
             {/* Timeline Tracks */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-x-auto overflow-y-hidden"
+              className="flex-1 overflow-x-auto overflow-y-auto"
             >
               <div style={{ width: duration * pixelsPerSecond }}>
                 {/* Ruler */}
@@ -589,13 +743,67 @@ export function Timeline() {
                       onDelete={() => deleteKeyframe(keyframe.id)}
                     />
                   ))}
-
-                  {/* Playhead line extending through tracks */}
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
-                    style={{ left: currentTime * pixelsPerSecond }}
-                  />
                 </div>
+
+                {/* Zones Track */}
+                {zones.length > 0 && (
+                  <div className="relative h-8 border-b bg-green-500/5">
+                    {zones.map((zone) => (
+                      <ZoneItem
+                        key={zone.id}
+                        zone={zone}
+                        pixelsPerSecond={pixelsPerSecond}
+                        isSelected={
+                          selectedElement?.type === 'zone' &&
+                          selectedElement.id === zone.id
+                        }
+                        onSelect={() => selectElement({ type: 'zone', id: zone.id })}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Routes Track */}
+                {routes.length > 0 && (
+                  <div className="relative h-8 border-b bg-orange-500/5">
+                    {routes.map((route) => (
+                      <RouteItem
+                        key={route.id}
+                        route={route}
+                        pixelsPerSecond={pixelsPerSecond}
+                        isSelected={
+                          selectedElement?.type === 'route' &&
+                          selectedElement.id === route.id
+                        }
+                        onSelect={() => selectElement({ type: 'route', id: route.id })}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Text Markers Track */}
+                {textMarkers.length > 0 && (
+                  <div className="relative h-8 border-b bg-purple-500/5">
+                    {textMarkers.map((marker) => (
+                      <TextMarkerItem
+                        key={marker.id}
+                        marker={marker}
+                        pixelsPerSecond={pixelsPerSecond}
+                        isSelected={
+                          selectedElement?.type === 'textMarker' &&
+                          selectedElement.id === marker.id
+                        }
+                        onSelect={() => selectElement({ type: 'textMarker', id: marker.id })}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Playhead line extending through all tracks */}
+                <div
+                  className="absolute top-6 bottom-0 w-0.5 bg-red-500 pointer-events-none z-10"
+                  style={{ left: currentTime * pixelsPerSecond }}
+                />
               </div>
             </div>
           </div>
