@@ -427,6 +427,18 @@ export default function DashboardPage() {
           router.push(`/editor/${projectId}`);
         }}
       />
+
+      {/* Version Indicator */}
+      <div className="mt-8 pt-4 border-t border-muted text-center">
+        <p className="text-xs text-muted-foreground/60">
+          Build: {process.env.NEXT_PUBLIC_BUILD_TIME || 'dev'}
+          {process.env.NEXT_PUBLIC_BUILD_TIMESTAMP && (
+            <span className="ml-2 font-mono">
+              ({process.env.NEXT_PUBLIC_BUILD_TIMESTAMP.slice(0, 10)})
+            </span>
+          )}
+        </p>
+      </div>
     </div>
   );
 }

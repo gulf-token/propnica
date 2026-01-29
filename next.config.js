@@ -1,12 +1,25 @@
 /** @type {import('next').NextConfig} */
+
+// Generate build info at build time
+const buildTimestamp = new Date().toISOString();
+const shortTimestamp = buildTimestamp.slice(0, 16).replace('T', ' '); // "2026-01-29 12:34"
+
 const nextConfig = {
   reactStrictMode: true,
+  // Generate a unique build ID
+  generateBuildId: async () => {
+    // Use timestamp-based build ID for easy identification
+    const now = new Date();
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  },
   // Bake server-side env vars into the bundle at build time
   // This is needed because Amplify WEB_COMPUTE doesn't pass non-NEXT_PUBLIC env vars at runtime
   env: {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    NEXT_PUBLIC_BUILD_TIMESTAMP: buildTimestamp,
+    NEXT_PUBLIC_BUILD_TIME: shortTimestamp,
   },
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'sharp'],
