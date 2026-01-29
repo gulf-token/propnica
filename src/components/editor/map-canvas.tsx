@@ -1162,6 +1162,35 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
   // Update Text Markers
   // ===========================================
 
+  /**
+   * Calculate animated opacity based on timing and fade durations
+   */
+  const calculateMarkerOpacity = (
+    startTime: number,
+    endTime: number,
+    fadeInDuration: number,
+    fadeOutDuration: number,
+    time: number
+  ): number => {
+    // Before start - not visible
+    if (time < startTime) return 0;
+    // After end - not visible
+    if (time >= endTime) return 0;
+
+    // During fade in
+    if (fadeInDuration > 0 && time < startTime + fadeInDuration) {
+      return (time - startTime) / fadeInDuration;
+    }
+
+    // During fade out
+    if (fadeOutDuration > 0 && time > endTime - fadeOutDuration) {
+      return (endTime - time) / fadeOutDuration;
+    }
+
+    // Fully visible
+    return 1;
+  };
+
   React.useEffect(() => {
     if (!mapRef.current || !config?.textMarkers) return;
 
@@ -1193,13 +1222,22 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
         // Create new marker
         const el = document.createElement('div');
         el.className = 'text-marker';
-        const bgOpacity = textMarker.style.backgroundOpacity ?? 0.9;
         const borderWidth = textMarker.style.borderWidth ?? 0;
         const borderColour = textMarker.style.borderColour || '#000000';
         const rotation = textMarker.style.rotation ?? 0;
+
+        // Calculate animated opacity based on fade in/out
+        const animatedOpacity = calculateMarkerOpacity(
+          textMarker.timing.startTime,
+          textMarker.timing.endTime,
+          textMarker.timing.fadeInDuration,
+          textMarker.timing.fadeOutDuration,
+          currentTime
+        );
+
         el.style.cssText = `
           background-color: ${textMarker.style.backgroundColour || 'rgba(0,0,0,0.8)'};
-          opacity: ${bgOpacity};
+          opacity: ${animatedOpacity};
           color: ${textMarker.style.fontColour || '#ffffff'};
           font-size: ${textMarker.style.fontSize || 14}px;
           padding: ${textMarker.style.padding || 8}px;
@@ -1210,6 +1248,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
           transform: rotate(${rotation}deg);
           transform-origin: center center;
+          transition: opacity 0.05s ease-out;
         `;
         el.textContent = textMarker.text;
 
@@ -1229,8 +1268,15 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
         marker.setLngLat(textMarker.position);
         const el = marker.getElement();
 
-        // Calculate style values
-        const bgOpacity = textMarker.style.backgroundOpacity ?? 0.8;
+        // Calculate animated opacity based on fade in/out
+        const animatedOpacity = calculateMarkerOpacity(
+          textMarker.timing.startTime,
+          textMarker.timing.endTime,
+          textMarker.timing.fadeInDuration,
+          textMarker.timing.fadeOutDuration,
+          currentTime
+        );
+
         const borderColour = textMarker.style.borderColour || 'transparent';
         const borderWidth = textMarker.style.borderWidth || 0;
         const rotation = textMarker.style.rotation || 0;
@@ -1242,7 +1288,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
           font-weight: ${textMarker.style.fontWeight || 'normal'};
           color: ${textMarker.style.fontColour || '#ffffff'};
           background-color: ${textMarker.style.backgroundColour || 'rgba(0,0,0,0.8)'};
-          opacity: ${bgOpacity};
+          opacity: ${animatedOpacity};
           padding: ${textMarker.style.padding || 8}px;
           border-radius: ${textMarker.style.borderRadius || 4}px;
           border: ${borderWidth > 0 ? `${borderWidth}px solid ${borderColour}` : 'none'};
@@ -1251,6 +1297,7 @@ export const MapCanvas = React.forwardRef<MapCanvasRef, MapCanvasProps>(
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
           transform: rotate(${rotation}deg);
           transform-origin: center center;
+          transition: opacity 0.05s ease-out;
         `;
       }
     });

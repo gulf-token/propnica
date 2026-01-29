@@ -407,7 +407,7 @@ function KeyframeProperties() {
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-200px)]">
+      <div>
         {/* Name */}
         <Section title="Name">
           <Input
@@ -558,7 +558,7 @@ function KeyframeProperties() {
             />
           </PropertyRow>
         </Section>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -604,7 +604,7 @@ function ZoneProperties() {
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-200px)]">
+      <div>
         {/* Name */}
         <Section title="Name">
           <Input
@@ -976,7 +976,7 @@ function ZoneProperties() {
             </>
           )}
         </Section>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -1022,7 +1022,7 @@ function RouteProperties() {
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-200px)]">
+      <div>
         {/* Name */}
         <Section title="Name">
           <Input
@@ -1476,7 +1476,7 @@ function RouteProperties() {
             </PropertyRow>
           )}
         </Section>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -1522,7 +1522,7 @@ function TextMarkerProperties() {
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-200px)]">
+      <div>
         {/* Text */}
         <Section title="Text">
           <Input
@@ -1869,7 +1869,7 @@ function TextMarkerProperties() {
             </Select>
           </PropertyRow>
         </Section>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -1934,11 +1934,13 @@ export function PropertyPanel() {
   };
 
   return (
-    <div className="w-64 bg-background border-l flex flex-col">
-      <div className="p-3 border-b">
+    <div className="w-64 bg-background border-l flex flex-col h-full overflow-hidden">
+      <div className="p-3 border-b shrink-0">
         <h2 className="font-semibold text-sm">Properties</h2>
       </div>
-      {renderContent()}
+      <div className="flex-1 overflow-y-auto">
+        {renderContent()}
+      </div>
     </div>
   );
 }

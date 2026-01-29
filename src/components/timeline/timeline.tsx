@@ -35,6 +35,72 @@ import { TimelineTable, TimelineItemType } from '@/components/ai/timeline-table'
 const PIXELS_PER_SECOND_BASE = 50;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
+const ITEM_HEIGHT = 24; // Height of each timeline item
+const ITEM_GAP = 2; // Gap between stacked items
+const TRACK_PADDING = 4; // Padding at top/bottom of track
+
+// ===========================================
+// Row Assignment Utility
+// ===========================================
+
+interface TimedItem {
+  id: string;
+  startTime: number;
+  endTime: number;
+}
+
+/**
+ * Assign row indices to items to avoid overlaps
+ * Returns a map of item ID to row index
+ */
+function assignRows<T extends TimedItem>(items: T[]): Map<string, number> {
+  const rowAssignments = new Map<string, number>();
+  const rowEndTimes: number[] = []; // Track when each row becomes free
+
+  // Sort by start time for greedy assignment
+  const sortedItems = [...items].sort((a, b) => a.startTime - b.startTime);
+
+  for (const item of sortedItems) {
+    // Find the first row that's free (ends before this item starts)
+    let assignedRow = -1;
+    for (let row = 0; row < rowEndTimes.length; row++) {
+      if (rowEndTimes[row] <= item.startTime) {
+        assignedRow = row;
+        break;
+      }
+    }
+
+    // If no free row found, create a new one
+    if (assignedRow === -1) {
+      assignedRow = rowEndTimes.length;
+      rowEndTimes.push(0);
+    }
+
+    // Assign this item to the row and update when the row becomes free
+    rowAssignments.set(item.id, assignedRow);
+    rowEndTimes[assignedRow] = item.endTime;
+  }
+
+  return rowAssignments;
+}
+
+/**
+ * Calculate track height based on number of rows needed
+ */
+function calculateTrackHeight(rowCount: number): number {
+  return TRACK_PADDING * 2 + rowCount * ITEM_HEIGHT + (rowCount - 1) * ITEM_GAP;
+}
+
+/**
+ * Convert items to TimedItems for row assignment
+ */
+function toTimedItems(items: (Zone | Route | TextMarker)[]): TimedItem[] {
+  return items.map(item => ({
+    id: item.id,
+    startTime: item.timing?.startTime ?? 0,
+    endTime: item.timing?.endTime ?? 30,
+  }));
+}
 
 // ===========================================
 // Timeline Ruler Component
@@ -164,23 +230,27 @@ interface ZoneItemProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: () => void;
+  row?: number;
 }
 
-function ZoneItem({ zone, pixelsPerSecond, isSelected, onSelect }: ZoneItemProps) {
+function ZoneItem({ zone, pixelsPerSecond, isSelected, onSelect, row = 0 }: ZoneItemProps) {
   const startTime = zone.timing?.startTime ?? 0;
   const endTime = zone.timing?.endTime ?? 30;
   const x = startTime * pixelsPerSecond;
   const width = (endTime - startTime) * pixelsPerSecond;
+  const top = TRACK_PADDING + row * (ITEM_HEIGHT + ITEM_GAP);
 
   return (
     <div
       className={cn(
-        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'absolute rounded cursor-pointer transition-colors',
         'bg-green-500/80 hover:bg-green-500',
         isSelected && 'ring-2 ring-green-500 ring-offset-1'
       )}
       style={{
         left: x,
+        top,
+        height: ITEM_HEIGHT,
         width: Math.max(width, 20),
       }}
       onClick={(e) => {
@@ -207,23 +277,27 @@ interface RouteItemProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: () => void;
+  row?: number;
 }
 
-function RouteItem({ route, pixelsPerSecond, isSelected, onSelect }: RouteItemProps) {
+function RouteItem({ route, pixelsPerSecond, isSelected, onSelect, row = 0 }: RouteItemProps) {
   const startTime = route.timing?.startTime ?? 0;
   const endTime = route.timing?.endTime ?? 30;
   const x = startTime * pixelsPerSecond;
   const width = (endTime - startTime) * pixelsPerSecond;
+  const top = TRACK_PADDING + row * (ITEM_HEIGHT + ITEM_GAP);
 
   return (
     <div
       className={cn(
-        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'absolute rounded cursor-pointer transition-colors',
         'bg-orange-500/80 hover:bg-orange-500',
         isSelected && 'ring-2 ring-orange-500 ring-offset-1'
       )}
       style={{
         left: x,
+        top,
+        height: ITEM_HEIGHT,
         width: Math.max(width, 20),
       }}
       onClick={(e) => {
@@ -250,23 +324,27 @@ interface TextMarkerItemProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: () => void;
+  row?: number;
 }
 
-function TextMarkerItem({ marker, pixelsPerSecond, isSelected, onSelect }: TextMarkerItemProps) {
+function TextMarkerItem({ marker, pixelsPerSecond, isSelected, onSelect, row = 0 }: TextMarkerItemProps) {
   const startTime = marker.timing?.startTime ?? 0;
   const endTime = marker.timing?.endTime ?? 30;
   const x = startTime * pixelsPerSecond;
   const width = (endTime - startTime) * pixelsPerSecond;
+  const top = TRACK_PADDING + row * (ITEM_HEIGHT + ITEM_GAP);
 
   return (
     <div
       className={cn(
-        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'absolute rounded cursor-pointer transition-colors',
         'bg-purple-500/80 hover:bg-purple-500',
         isSelected && 'ring-2 ring-purple-500 ring-offset-1'
       )}
       style={{
         left: x,
+        top,
+        height: ITEM_HEIGHT,
         width: Math.max(width, 20),
       }}
       onClick={(e) => {
@@ -488,6 +566,29 @@ export function Timeline() {
   const textMarkers = config?.textMarkers ?? [];
   const pixelsPerSecond = PIXELS_PER_SECOND_BASE * timelineZoom;
 
+  // Calculate row assignments for overlapping items
+  const zoneRowAssignments = React.useMemo(
+    () => assignRows(toTimedItems(zones)),
+    [zones]
+  );
+  const routeRowAssignments = React.useMemo(
+    () => assignRows(toTimedItems(routes)),
+    [routes]
+  );
+  const markerRowAssignments = React.useMemo(
+    () => assignRows(toTimedItems(textMarkers)),
+    [textMarkers]
+  );
+
+  // Calculate track heights based on number of rows
+  const zoneRowCount = zones.length > 0 ? Math.max(...Array.from(zoneRowAssignments.values())) + 1 : 1;
+  const routeRowCount = routes.length > 0 ? Math.max(...Array.from(routeRowAssignments.values())) + 1 : 1;
+  const markerRowCount = textMarkers.length > 0 ? Math.max(...Array.from(markerRowAssignments.values())) + 1 : 1;
+
+  const zoneTrackHeight = zones.length > 0 ? calculateTrackHeight(zoneRowCount) : 32;
+  const routeTrackHeight = routes.length > 0 ? calculateTrackHeight(routeRowCount) : 32;
+  const markerTrackHeight = textMarkers.length > 0 ? calculateTrackHeight(markerRowCount) : 32;
+
   // Handle ruler click to seek
   const handleRulerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -689,23 +790,38 @@ export function Timeline() {
               </div>
               {/* Zones Track Label */}
               {zones.length > 0 && (
-                <div className="h-8 flex items-center px-2 border-b bg-green-500/5">
-                  <span className="text-xs font-medium text-green-600">Zones</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">{zones.length}</span>
+                <div
+                  className="flex items-start px-2 border-b bg-green-500/5"
+                  style={{ height: zoneTrackHeight }}
+                >
+                  <div className="flex items-center justify-between w-full pt-1">
+                    <span className="text-xs font-medium text-green-600">Zones</span>
+                    <span className="text-[10px] text-muted-foreground">{zones.length}</span>
+                  </div>
                 </div>
               )}
               {/* Routes Track Label */}
               {routes.length > 0 && (
-                <div className="h-8 flex items-center px-2 border-b bg-orange-500/5">
-                  <span className="text-xs font-medium text-orange-600">Routes</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">{routes.length}</span>
+                <div
+                  className="flex items-start px-2 border-b bg-orange-500/5"
+                  style={{ height: routeTrackHeight }}
+                >
+                  <div className="flex items-center justify-between w-full pt-1">
+                    <span className="text-xs font-medium text-orange-600">Routes</span>
+                    <span className="text-[10px] text-muted-foreground">{routes.length}</span>
+                  </div>
                 </div>
               )}
               {/* Markers Track Label */}
               {textMarkers.length > 0 && (
-                <div className="h-8 flex items-center px-2 border-b bg-purple-500/5">
-                  <span className="text-xs font-medium text-purple-600">Markers</span>
-                  <span className="ml-auto text-[10px] text-muted-foreground">{textMarkers.length}</span>
+                <div
+                  className="flex items-start px-2 border-b bg-purple-500/5"
+                  style={{ height: markerTrackHeight }}
+                >
+                  <div className="flex items-center justify-between w-full pt-1">
+                    <span className="text-xs font-medium text-purple-600">Markers</span>
+                    <span className="text-[10px] text-muted-foreground">{textMarkers.length}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -747,7 +863,10 @@ export function Timeline() {
 
                 {/* Zones Track */}
                 {zones.length > 0 && (
-                  <div className="relative h-8 border-b bg-green-500/5">
+                  <div
+                    className="relative border-b bg-green-500/5"
+                    style={{ height: zoneTrackHeight }}
+                  >
                     {zones.map((zone) => (
                       <ZoneItem
                         key={zone.id}
@@ -758,6 +877,7 @@ export function Timeline() {
                           selectedElement.id === zone.id
                         }
                         onSelect={() => selectElement({ type: 'zone', id: zone.id })}
+                        row={zoneRowAssignments.get(zone.id) ?? 0}
                       />
                     ))}
                   </div>
@@ -765,7 +885,10 @@ export function Timeline() {
 
                 {/* Routes Track */}
                 {routes.length > 0 && (
-                  <div className="relative h-8 border-b bg-orange-500/5">
+                  <div
+                    className="relative border-b bg-orange-500/5"
+                    style={{ height: routeTrackHeight }}
+                  >
                     {routes.map((route) => (
                       <RouteItem
                         key={route.id}
@@ -776,6 +899,7 @@ export function Timeline() {
                           selectedElement.id === route.id
                         }
                         onSelect={() => selectElement({ type: 'route', id: route.id })}
+                        row={routeRowAssignments.get(route.id) ?? 0}
                       />
                     ))}
                   </div>
@@ -783,7 +907,10 @@ export function Timeline() {
 
                 {/* Text Markers Track */}
                 {textMarkers.length > 0 && (
-                  <div className="relative h-8 border-b bg-purple-500/5">
+                  <div
+                    className="relative border-b bg-purple-500/5"
+                    style={{ height: markerTrackHeight }}
+                  >
                     {textMarkers.map((marker) => (
                       <TextMarkerItem
                         key={marker.id}
@@ -794,6 +921,7 @@ export function Timeline() {
                           selectedElement.id === marker.id
                         }
                         onSelect={() => selectElement({ type: 'textMarker', id: marker.id })}
+                        row={markerRowAssignments.get(marker.id) ?? 0}
                       />
                     ))}
                   </div>
