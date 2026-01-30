@@ -38,6 +38,31 @@ const MAX_ZOOM = 4;
 const ITEM_HEIGHT = 24; // Height of each timeline item
 const ITEM_GAP = 2; // Gap between stacked items
 const TRACK_PADDING = 4; // Padding at top/bottom of track
+const RESIZE_HANDLE_WIDTH = 6; // Width of resize handles on edges
+
+// ===========================================
+// Drag State Types
+// ===========================================
+
+type DragMode = 'move' | 'resize-start' | 'resize-end';
+
+interface DragState {
+  isDragging: boolean;
+  mode: DragMode;
+  startX: number;
+  originalStartTime: number;
+  originalEndTime: number;
+  currentDelta: number;
+}
+
+const initialDragState: DragState = {
+  isDragging: false,
+  mode: 'move',
+  startX: 0,
+  originalStartTime: 0,
+  originalEndTime: 0,
+  currentDelta: 0,
+};
 
 // ===========================================
 // Row Assignment Utility
@@ -214,6 +239,9 @@ interface KeyframeItemProps {
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onTimeChange: (time: number) => void;
+  onDurationChange: (duration: number) => void;
+  maxTime: number;
 }
 
 function KeyframeItem({
@@ -221,33 +249,130 @@ function KeyframeItem({
   pixelsPerSecond,
   isSelected,
   onSelect,
-  onDelete,
+  onTimeChange,
+  onDurationChange,
+  maxTime,
 }: KeyframeItemProps) {
-  const x = keyframe.time * pixelsPerSecond;
-  const width = keyframe.duration * pixelsPerSecond;
+  const [dragState, setDragState] = React.useState<DragState>(initialDragState);
+  const itemRef = React.useRef<HTMLDivElement>(null);
+
+  // Calculate position and width
+  const baseX = keyframe.time * pixelsPerSecond;
+  const baseWidth = keyframe.duration * pixelsPerSecond;
+
+  // Apply drag delta for visual feedback
+  let displayX = baseX;
+  let displayWidth = baseWidth;
+
+  if (dragState.isDragging) {
+    const timeDelta = dragState.currentDelta / pixelsPerSecond;
+    if (dragState.mode === 'move') {
+      displayX = Math.max(0, baseX + dragState.currentDelta);
+    } else if (dragState.mode === 'resize-start') {
+      const newStart = Math.max(0, keyframe.time + timeDelta);
+      const maxStart = keyframe.time + keyframe.duration - 0.1; // Minimum 0.1s duration
+      displayX = Math.min(newStart, maxStart) * pixelsPerSecond;
+      displayWidth = (keyframe.time + keyframe.duration - Math.min(newStart, maxStart)) * pixelsPerSecond;
+    } else if (dragState.mode === 'resize-end') {
+      const newDuration = Math.max(0.1, keyframe.duration + timeDelta);
+      displayWidth = newDuration * pixelsPerSecond;
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent, mode: DragMode) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+
+    setDragState({
+      isDragging: true,
+      mode,
+      startX: e.clientX,
+      originalStartTime: keyframe.time,
+      originalEndTime: keyframe.time + keyframe.duration,
+      currentDelta: 0,
+    });
+  };
+
+  React.useEffect(() => {
+    if (!dragState.isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - dragState.startX;
+      setDragState((prev) => ({ ...prev, currentDelta: delta }));
+    };
+
+    const handleMouseUp = () => {
+      const timeDelta = dragState.currentDelta / pixelsPerSecond;
+
+      if (dragState.mode === 'move') {
+        const newTime = Math.max(0, Math.min(maxTime - keyframe.duration, keyframe.time + timeDelta));
+        if (Math.abs(newTime - keyframe.time) > 0.01) {
+          onTimeChange(Math.round(newTime * 10) / 10);
+        }
+      } else if (dragState.mode === 'resize-start') {
+        const newStart = Math.max(0, keyframe.time + timeDelta);
+        const maxStart = keyframe.time + keyframe.duration - 0.1;
+        const clampedStart = Math.min(newStart, maxStart);
+        const newDuration = keyframe.time + keyframe.duration - clampedStart;
+        if (Math.abs(clampedStart - keyframe.time) > 0.01) {
+          onTimeChange(Math.round(clampedStart * 10) / 10);
+          onDurationChange(Math.round(newDuration * 10) / 10);
+        }
+      } else if (dragState.mode === 'resize-end') {
+        const newDuration = Math.max(0.1, keyframe.duration + timeDelta);
+        const maxDuration = maxTime - keyframe.time;
+        const clampedDuration = Math.min(newDuration, maxDuration);
+        if (Math.abs(clampedDuration - keyframe.duration) > 0.01) {
+          onDurationChange(Math.round(clampedDuration * 10) / 10);
+        }
+      }
+
+      setDragState(initialDragState);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState.isDragging, dragState.startX, dragState.currentDelta, dragState.mode, pixelsPerSecond, keyframe, onTimeChange, onDurationChange, maxTime]);
 
   return (
     <div
+      ref={itemRef}
       className={cn(
-        'absolute top-1 h-6 rounded cursor-pointer transition-colors',
+        'absolute top-1 h-6 rounded transition-colors group',
         'bg-primary/80 hover:bg-primary',
-        isSelected && 'ring-2 ring-primary ring-offset-1'
+        isSelected && 'ring-2 ring-primary ring-offset-1',
+        dragState.isDragging ? 'cursor-grabbing opacity-80' : 'cursor-grab'
       )}
       style={{
-        left: x,
-        width: Math.max(width, 20),
+        left: displayX,
+        width: Math.max(displayWidth, 20),
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
+      onMouseDown={(e) => handleMouseDown(e, 'move')}
       title={keyframe.name || `Keyframe at ${formatTime(keyframe.time)}`}
     >
-      <div className="px-1.5 h-full flex items-center">
+      {/* Left resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-l"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-start')}
+      />
+
+      {/* Content */}
+      <div className="px-2 h-full flex items-center">
         <span className="text-[10px] text-primary-foreground truncate">
           {keyframe.name || formatTime(keyframe.time)}
         </span>
       </div>
+
+      {/* Right resize handle */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-r"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-end')}
+      />
     </div>
   );
 }
@@ -261,40 +386,133 @@ interface ZoneItemProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: () => void;
+  onTimingChange: (startTime: number, endTime: number) => void;
   row?: number;
+  maxTime: number;
 }
 
-function ZoneItem({ zone, pixelsPerSecond, isSelected, onSelect, row = 0 }: ZoneItemProps) {
+function ZoneItem({ zone, pixelsPerSecond, isSelected, onSelect, onTimingChange, row = 0, maxTime }: ZoneItemProps) {
+  const [dragState, setDragState] = React.useState<DragState>(initialDragState);
+
   const startTime = zone.timing?.startTime ?? 0;
   const endTime = zone.timing?.endTime ?? 30;
-  const x = startTime * pixelsPerSecond;
-  const width = (endTime - startTime) * pixelsPerSecond;
+  const duration = endTime - startTime;
+  const baseX = startTime * pixelsPerSecond;
+  const baseWidth = duration * pixelsPerSecond;
   const top = TRACK_PADDING + row * (ITEM_HEIGHT + ITEM_GAP);
+
+  // Apply drag delta for visual feedback
+  let displayX = baseX;
+  let displayWidth = baseWidth;
+
+  if (dragState.isDragging) {
+    const timeDelta = dragState.currentDelta / pixelsPerSecond;
+    if (dragState.mode === 'move') {
+      displayX = Math.max(0, baseX + dragState.currentDelta);
+    } else if (dragState.mode === 'resize-start') {
+      const newStart = Math.max(0, startTime + timeDelta);
+      const maxStart = endTime - 0.1;
+      displayX = Math.min(newStart, maxStart) * pixelsPerSecond;
+      displayWidth = (endTime - Math.min(newStart, maxStart)) * pixelsPerSecond;
+    } else if (dragState.mode === 'resize-end') {
+      const newDuration = Math.max(0.1, duration + timeDelta);
+      displayWidth = newDuration * pixelsPerSecond;
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent, mode: DragMode) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+
+    setDragState({
+      isDragging: true,
+      mode,
+      startX: e.clientX,
+      originalStartTime: startTime,
+      originalEndTime: endTime,
+      currentDelta: 0,
+    });
+  };
+
+  React.useEffect(() => {
+    if (!dragState.isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - dragState.startX;
+      setDragState((prev) => ({ ...prev, currentDelta: delta }));
+    };
+
+    const handleMouseUp = () => {
+      const timeDelta = dragState.currentDelta / pixelsPerSecond;
+
+      if (dragState.mode === 'move') {
+        const newStart = Math.max(0, Math.min(maxTime - duration, startTime + timeDelta));
+        const newEnd = newStart + duration;
+        if (Math.abs(newStart - startTime) > 0.01) {
+          onTimingChange(Math.round(newStart * 10) / 10, Math.round(newEnd * 10) / 10);
+        }
+      } else if (dragState.mode === 'resize-start') {
+        const newStart = Math.max(0, startTime + timeDelta);
+        const maxStart = endTime - 0.1;
+        const clampedStart = Math.min(newStart, maxStart);
+        if (Math.abs(clampedStart - startTime) > 0.01) {
+          onTimingChange(Math.round(clampedStart * 10) / 10, endTime);
+        }
+      } else if (dragState.mode === 'resize-end') {
+        const newEnd = Math.max(startTime + 0.1, endTime + timeDelta);
+        const clampedEnd = Math.min(newEnd, maxTime);
+        if (Math.abs(clampedEnd - endTime) > 0.01) {
+          onTimingChange(startTime, Math.round(clampedEnd * 10) / 10);
+        }
+      }
+
+      setDragState(initialDragState);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState.isDragging, dragState.startX, dragState.currentDelta, dragState.mode, pixelsPerSecond, startTime, endTime, duration, onTimingChange, maxTime]);
 
   return (
     <div
       className={cn(
-        'absolute rounded cursor-pointer transition-colors',
+        'absolute rounded transition-colors group',
         'bg-green-500/80 hover:bg-green-500',
-        isSelected && 'ring-2 ring-green-500 ring-offset-1'
+        isSelected && 'ring-2 ring-green-500 ring-offset-1',
+        dragState.isDragging ? 'cursor-grabbing opacity-80' : 'cursor-grab'
       )}
       style={{
-        left: x,
+        left: displayX,
         top,
         height: ITEM_HEIGHT,
-        width: Math.max(width, 20),
+        width: Math.max(displayWidth, 20),
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
+      onMouseDown={(e) => handleMouseDown(e, 'move')}
       title={zone.name || 'Zone'}
     >
-      <div className="px-1.5 h-full flex items-center">
+      {/* Left resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-l"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-start')}
+      />
+
+      {/* Content */}
+      <div className="px-2 h-full flex items-center">
         <span className="text-[10px] text-white truncate">
           {zone.name || 'Zone'}
         </span>
       </div>
+
+      {/* Right resize handle */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-r"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-end')}
+      />
     </div>
   );
 }
@@ -308,40 +526,133 @@ interface RouteItemProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: () => void;
+  onTimingChange: (startTime: number, endTime: number) => void;
   row?: number;
+  maxTime: number;
 }
 
-function RouteItem({ route, pixelsPerSecond, isSelected, onSelect, row = 0 }: RouteItemProps) {
+function RouteItem({ route, pixelsPerSecond, isSelected, onSelect, onTimingChange, row = 0, maxTime }: RouteItemProps) {
+  const [dragState, setDragState] = React.useState<DragState>(initialDragState);
+
   const startTime = route.timing?.startTime ?? 0;
   const endTime = route.timing?.endTime ?? 30;
-  const x = startTime * pixelsPerSecond;
-  const width = (endTime - startTime) * pixelsPerSecond;
+  const duration = endTime - startTime;
+  const baseX = startTime * pixelsPerSecond;
+  const baseWidth = duration * pixelsPerSecond;
   const top = TRACK_PADDING + row * (ITEM_HEIGHT + ITEM_GAP);
+
+  // Apply drag delta for visual feedback
+  let displayX = baseX;
+  let displayWidth = baseWidth;
+
+  if (dragState.isDragging) {
+    const timeDelta = dragState.currentDelta / pixelsPerSecond;
+    if (dragState.mode === 'move') {
+      displayX = Math.max(0, baseX + dragState.currentDelta);
+    } else if (dragState.mode === 'resize-start') {
+      const newStart = Math.max(0, startTime + timeDelta);
+      const maxStart = endTime - 0.1;
+      displayX = Math.min(newStart, maxStart) * pixelsPerSecond;
+      displayWidth = (endTime - Math.min(newStart, maxStart)) * pixelsPerSecond;
+    } else if (dragState.mode === 'resize-end') {
+      const newDuration = Math.max(0.1, duration + timeDelta);
+      displayWidth = newDuration * pixelsPerSecond;
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent, mode: DragMode) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+
+    setDragState({
+      isDragging: true,
+      mode,
+      startX: e.clientX,
+      originalStartTime: startTime,
+      originalEndTime: endTime,
+      currentDelta: 0,
+    });
+  };
+
+  React.useEffect(() => {
+    if (!dragState.isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - dragState.startX;
+      setDragState((prev) => ({ ...prev, currentDelta: delta }));
+    };
+
+    const handleMouseUp = () => {
+      const timeDelta = dragState.currentDelta / pixelsPerSecond;
+
+      if (dragState.mode === 'move') {
+        const newStart = Math.max(0, Math.min(maxTime - duration, startTime + timeDelta));
+        const newEnd = newStart + duration;
+        if (Math.abs(newStart - startTime) > 0.01) {
+          onTimingChange(Math.round(newStart * 10) / 10, Math.round(newEnd * 10) / 10);
+        }
+      } else if (dragState.mode === 'resize-start') {
+        const newStart = Math.max(0, startTime + timeDelta);
+        const maxStart = endTime - 0.1;
+        const clampedStart = Math.min(newStart, maxStart);
+        if (Math.abs(clampedStart - startTime) > 0.01) {
+          onTimingChange(Math.round(clampedStart * 10) / 10, endTime);
+        }
+      } else if (dragState.mode === 'resize-end') {
+        const newEnd = Math.max(startTime + 0.1, endTime + timeDelta);
+        const clampedEnd = Math.min(newEnd, maxTime);
+        if (Math.abs(clampedEnd - endTime) > 0.01) {
+          onTimingChange(startTime, Math.round(clampedEnd * 10) / 10);
+        }
+      }
+
+      setDragState(initialDragState);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState.isDragging, dragState.startX, dragState.currentDelta, dragState.mode, pixelsPerSecond, startTime, endTime, duration, onTimingChange, maxTime]);
 
   return (
     <div
       className={cn(
-        'absolute rounded cursor-pointer transition-colors',
+        'absolute rounded transition-colors group',
         'bg-orange-500/80 hover:bg-orange-500',
-        isSelected && 'ring-2 ring-orange-500 ring-offset-1'
+        isSelected && 'ring-2 ring-orange-500 ring-offset-1',
+        dragState.isDragging ? 'cursor-grabbing opacity-80' : 'cursor-grab'
       )}
       style={{
-        left: x,
+        left: displayX,
         top,
         height: ITEM_HEIGHT,
-        width: Math.max(width, 20),
+        width: Math.max(displayWidth, 20),
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
+      onMouseDown={(e) => handleMouseDown(e, 'move')}
       title={route.name || 'Route'}
     >
-      <div className="px-1.5 h-full flex items-center">
+      {/* Left resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-l"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-start')}
+      />
+
+      {/* Content */}
+      <div className="px-2 h-full flex items-center">
         <span className="text-[10px] text-white truncate">
           {route.name || 'Route'}
         </span>
       </div>
+
+      {/* Right resize handle */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-r"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-end')}
+      />
     </div>
   );
 }
@@ -355,105 +666,133 @@ interface TextMarkerItemProps {
   pixelsPerSecond: number;
   isSelected: boolean;
   onSelect: () => void;
+  onTimingChange: (startTime: number, endTime: number) => void;
   row?: number;
+  maxTime: number;
 }
 
-function TextMarkerItem({ marker, pixelsPerSecond, isSelected, onSelect, row = 0 }: TextMarkerItemProps) {
+function TextMarkerItem({ marker, pixelsPerSecond, isSelected, onSelect, onTimingChange, row = 0, maxTime }: TextMarkerItemProps) {
+  const [dragState, setDragState] = React.useState<DragState>(initialDragState);
+
   const startTime = marker.timing?.startTime ?? 0;
   const endTime = marker.timing?.endTime ?? 30;
-  const x = startTime * pixelsPerSecond;
-  const width = (endTime - startTime) * pixelsPerSecond;
+  const duration = endTime - startTime;
+  const baseX = startTime * pixelsPerSecond;
+  const baseWidth = duration * pixelsPerSecond;
   const top = TRACK_PADDING + row * (ITEM_HEIGHT + ITEM_GAP);
+
+  // Apply drag delta for visual feedback
+  let displayX = baseX;
+  let displayWidth = baseWidth;
+
+  if (dragState.isDragging) {
+    const timeDelta = dragState.currentDelta / pixelsPerSecond;
+    if (dragState.mode === 'move') {
+      displayX = Math.max(0, baseX + dragState.currentDelta);
+    } else if (dragState.mode === 'resize-start') {
+      const newStart = Math.max(0, startTime + timeDelta);
+      const maxStart = endTime - 0.1;
+      displayX = Math.min(newStart, maxStart) * pixelsPerSecond;
+      displayWidth = (endTime - Math.min(newStart, maxStart)) * pixelsPerSecond;
+    } else if (dragState.mode === 'resize-end') {
+      const newDuration = Math.max(0.1, duration + timeDelta);
+      displayWidth = newDuration * pixelsPerSecond;
+    }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent, mode: DragMode) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+
+    setDragState({
+      isDragging: true,
+      mode,
+      startX: e.clientX,
+      originalStartTime: startTime,
+      originalEndTime: endTime,
+      currentDelta: 0,
+    });
+  };
+
+  React.useEffect(() => {
+    if (!dragState.isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - dragState.startX;
+      setDragState((prev) => ({ ...prev, currentDelta: delta }));
+    };
+
+    const handleMouseUp = () => {
+      const timeDelta = dragState.currentDelta / pixelsPerSecond;
+
+      if (dragState.mode === 'move') {
+        const newStart = Math.max(0, Math.min(maxTime - duration, startTime + timeDelta));
+        const newEnd = newStart + duration;
+        if (Math.abs(newStart - startTime) > 0.01) {
+          onTimingChange(Math.round(newStart * 10) / 10, Math.round(newEnd * 10) / 10);
+        }
+      } else if (dragState.mode === 'resize-start') {
+        const newStart = Math.max(0, startTime + timeDelta);
+        const maxStart = endTime - 0.1;
+        const clampedStart = Math.min(newStart, maxStart);
+        if (Math.abs(clampedStart - startTime) > 0.01) {
+          onTimingChange(Math.round(clampedStart * 10) / 10, endTime);
+        }
+      } else if (dragState.mode === 'resize-end') {
+        const newEnd = Math.max(startTime + 0.1, endTime + timeDelta);
+        const clampedEnd = Math.min(newEnd, maxTime);
+        if (Math.abs(clampedEnd - endTime) > 0.01) {
+          onTimingChange(startTime, Math.round(clampedEnd * 10) / 10);
+        }
+      }
+
+      setDragState(initialDragState);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState.isDragging, dragState.startX, dragState.currentDelta, dragState.mode, pixelsPerSecond, startTime, endTime, duration, onTimingChange, maxTime]);
 
   return (
     <div
       className={cn(
-        'absolute rounded cursor-pointer transition-colors',
+        'absolute rounded transition-colors group',
         'bg-purple-500/80 hover:bg-purple-500',
-        isSelected && 'ring-2 ring-purple-500 ring-offset-1'
+        isSelected && 'ring-2 ring-purple-500 ring-offset-1',
+        dragState.isDragging ? 'cursor-grabbing opacity-80' : 'cursor-grab'
       )}
       style={{
-        left: x,
+        left: displayX,
         top,
         height: ITEM_HEIGHT,
-        width: Math.max(width, 20),
+        width: Math.max(displayWidth, 20),
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
+      onMouseDown={(e) => handleMouseDown(e, 'move')}
       title={marker.text || 'Marker'}
     >
-      <div className="px-1.5 h-full flex items-center">
+      {/* Left resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-l"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-start')}
+      />
+
+      {/* Content */}
+      <div className="px-2 h-full flex items-center">
         <span className="text-[10px] text-white truncate">
           {marker.text || 'Marker'}
         </span>
       </div>
-    </div>
-  );
-}
 
-// ===========================================
-// Track Component
-// ===========================================
-
-interface TrackProps {
-  name: string;
-  items: Keyframe[];
-  pixelsPerSecond: number;
-  duration: number;
-  selectedId: string | null;
-  onSelectItem: (id: string) => void;
-  onDeleteItem: (id: string) => void;
-  onAddItem: (time: number) => void;
-}
-
-function Track({
-  name,
-  items,
-  pixelsPerSecond,
-  duration,
-  selectedId,
-  onSelectItem,
-  onDeleteItem,
-  onAddItem,
-}: TrackProps) {
-  const trackRef = React.useRef<HTMLDivElement>(null);
-
-  const handleTrackClick = (e: React.MouseEvent) => {
-    if (trackRef.current) {
-      const rect = trackRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const time = x / pixelsPerSecond;
-      onAddItem(Math.max(0, Math.min(time, duration)));
-    }
-  };
-
-  return (
-    <div className="flex border-b border-border">
-      {/* Track Label */}
-      <div className="w-32 shrink-0 p-2 bg-muted/30 border-r border-border flex items-center">
-        <span className="text-xs font-medium truncate">{name}</span>
-      </div>
-
-      {/* Track Content */}
+      {/* Right resize handle */}
       <div
-        ref={trackRef}
-        className="relative h-8 flex-1 bg-muted/10"
-        style={{ width: duration * pixelsPerSecond }}
-        onDoubleClick={handleTrackClick}
-      >
-        {items.map((item) => (
-          <KeyframeItem
-            key={item.id}
-            keyframe={item}
-            pixelsPerSecond={pixelsPerSecond}
-            isSelected={selectedId === item.id}
-            onSelect={() => onSelectItem(item.id)}
-            onDelete={() => onDeleteItem(item.id)}
-          />
-        ))}
-      </div>
+        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/30 rounded-r"
+        onMouseDown={(e) => handleMouseDown(e, 'resize-end')}
+      />
     </div>
   );
 }
@@ -586,6 +925,10 @@ export function Timeline() {
   const deleteZone = useProjectStore((state) => state.deleteZone);
   const deleteRoute = useProjectStore((state) => state.deleteRoute);
   const deleteTextMarker = useProjectStore((state) => state.deleteTextMarker);
+  const updateKeyframe = useProjectStore((state) => state.updateKeyframe);
+  const updateZone = useProjectStore((state) => state.updateZone);
+  const updateRoute = useProjectStore((state) => state.updateRoute);
+  const updateTextMarker = useProjectStore((state) => state.updateTextMarker);
 
   const selectedElement = useEditorStore((state) => state.selectedElement);
   const selectElement = useEditorStore((state) => state.selectElement);
@@ -955,6 +1298,9 @@ export function Timeline() {
                       }
                       onSelect={() => handleSelectKeyframe(keyframe.id)}
                       onDelete={() => deleteKeyframe(keyframe.id)}
+                      onTimeChange={(time) => updateKeyframe(keyframe.id, { time })}
+                      onDurationChange={(dur) => updateKeyframe(keyframe.id, { duration: dur })}
+                      maxTime={duration}
                     />
                   ))}
                 </div>
@@ -975,7 +1321,11 @@ export function Timeline() {
                           selectedElement.id === zone.id
                         }
                         onSelect={() => handleSelectZone(zone.id)}
+                        onTimingChange={(startTime, endTime) =>
+                          updateZone(zone.id, { timing: { ...zone.timing, startTime, endTime } })
+                        }
                         row={zoneRowAssignments.get(zone.id) ?? 0}
+                        maxTime={duration}
                       />
                     ))}
                   </div>
@@ -997,7 +1347,11 @@ export function Timeline() {
                           selectedElement.id === route.id
                         }
                         onSelect={() => handleSelectRoute(route.id)}
+                        onTimingChange={(startTime, endTime) =>
+                          updateRoute(route.id, { timing: { ...route.timing, startTime, endTime } })
+                        }
                         row={routeRowAssignments.get(route.id) ?? 0}
+                        maxTime={duration}
                       />
                     ))}
                   </div>
@@ -1019,7 +1373,11 @@ export function Timeline() {
                           selectedElement.id === marker.id
                         }
                         onSelect={() => handleSelectTextMarker(marker.id)}
+                        onTimingChange={(startTime, endTime) =>
+                          updateTextMarker(marker.id, { timing: { ...marker.timing, startTime, endTime } })
+                        }
                         row={markerRowAssignments.get(marker.id) ?? 0}
+                        maxTime={duration}
                       />
                     ))}
                   </div>
